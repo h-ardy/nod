@@ -1,5 +1,7 @@
 # Nod: build and software guide
 
+Try the working demo: https://h-ardy.github.io/nod/ (click the key, or press Space)
+
 Nod is a 1 x 1 x 3 in key with a screen. Your AI agents and `git push` send approval requests to it over Bluetooth. Requests fall down the screen like piano tiles; the key under a lane answers the tile sitting on the line. You can start a long Claude Code run, walk away, and approve from the key when it lights up.
 
 ```
