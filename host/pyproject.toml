@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nod-key"
+version = "0.1.0"
+description = "Laptop side of the Nod approval key: daemon, Claude Code hooks, git hook, chat bridge"
+requires-python = ">=3.10"
+dependencies = ["aiohttp>=3.9", "bleak>=0.22", "mcp>=1.2"]
+
+[project.scripts]
+nod = "nod.cli:main"
+
+[tool.setuptools]
+packages = ["nod"]

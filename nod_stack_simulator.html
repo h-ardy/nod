@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nod Stack Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@400;500;700&family=Silkscreen&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* one visual world: a grey desk mat, a graphite device, the AIs' colors live only on the screens */
+  --desk: #D7D8D3;
+  --ink: #141517;
+  --muted: #53575C;
+  --rule: #B4B6B0;
+  --device: #1D1E21;
+  --deny: #C9352A;
+  --display: "Bricolage Grotesque", "Arial Narrow", sans-serif;
+  --body: "JetBrains Mono", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--desk); color: var(--ink); font-family: var(--body); font-size: 14px; }
+a { color: var(--ink); }
+button { font-family: var(--body); }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+.wrap { max-width: 1280px; margin: 0 auto; padding: 28px 24px 48px; display: grid; grid-template-columns: 230px minmax(0, 1fr) 320px; gap: 32px; align-items: start; }
+header.top { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; gap: 24px; flex-wrap: wrap; border-bottom: 1.5px solid var(--ink); padding-bottom: 14px; }
+h1 { font-family: var(--display); font-weight: 800; font-size: 44px; line-height: 1; letter-spacing: -0.035em; margin: 0; text-wrap: balance; }
+h1 span { font-weight: 600; color: var(--muted); }
+.top p { margin: 0; color: var(--muted); max-width: 60ch; line-height: 1.5; }
+
+h2 { font-family: var(--display); font-weight: 600; font-size: 19px; letter-spacing: -0.01em; margin: 0 0 10px; }
+.controls { display: flex; flex-direction: column; gap: 26px; }
+.sendlist { display: flex; flex-direction: column; gap: 6px; }
+.send { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 10px; align-items: center; text-align: left; background: transparent; border: 1.5px solid var(--ink); border-radius: 6px; padding: 9px 12px; min-height: 44px; font-size: 13px; color: var(--ink); cursor: pointer; }
+.send:hover { background: var(--ink); color: var(--desk); }
+.send i { width: 12px; height: 12px; border-radius: 3px; display: block; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
+.send small { display: block; color: inherit; opacity: .7; font-size: 11px; margin-top: 2px; }
+.how { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13px; line-height: 1.4; }
+.how dt { font-weight: 700; }
+.how dd { margin: 0; color: var(--muted); }
+.toggle { display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer; }
+.toggle input { width: 18px; height: 18px; accent-color: var(--ink); }
+
+.stage { display: flex; flex-direction: column; align-items: center; gap: 18px; padding-top: 6px; }
+.stack { display: flex; gap: 3px; padding: 0; position: relative; }
+.stack::after { content: ""; position: absolute; left: 4%; right: 4%; bottom: -22px; height: 26px; border-radius: 50%; background: rgba(20,21,23,.22); filter: blur(10px); z-index: -1; }
+.key { width: 200px; aspect-ratio: 1 / 3; background: var(--device); border-radius: 15px; position: relative; box-shadow: inset 0 1px 0 rgba(255,255,255,.07), inset 0 -2px 0 rgba(0,0,0,.4); display: flex; flex-direction: column; align-items: center; padding-top: 16px; }
+.key .glass { width: 180px; padding: 8px 4px 10px; background: #050506; border-radius: 10px; }
+.key canvas { display: block; width: 172px; height: 320px; border-radius: 5px; image-rendering: pixelated; }
+.key .cap { margin-top: 18px; width: 172px; flex: 1; max-height: 196px; border: 0; border-radius: 11px; background: #2B2C30; cursor: pointer; color: #9A9DA3; font-size: 11px; letter-spacing: .14em; touch-action: none; user-select: none; -webkit-user-select: none; transition: transform 60ms, background 60ms; box-shadow: inset 0 0 0 1px #46484E; }
+.key .cap.down { transform: translateY(4px); background: #232428; }
+.key .cap { position: relative; }
+.key .cap.yes::after { content: ""; position: absolute; inset: -3px; border-radius: 13px; border: 3px solid var(--yes); pointer-events: none; animation: yes 620ms cubic-bezier(.2,.7,.3,1) forwards; }
+@keyframes yes { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.22); } }
+.key .cap kbd { display: block; font-family: var(--body); font-size: 10px; opacity: .55; margin-top: 6px; }
+.key .tag { position: absolute; bottom: -34px; left: 0; right: 0; text-align: center; font-size: 12px; color: var(--muted); }
+.key .tag b { color: var(--ink); }
+.magnet { position: absolute; top: 50%; width: 3px; height: 26px; background: #6E7076; border-radius: 2px; transform: translateY(-50%); }
+.magnet.l { left: -2px; } .magnet.r { right: -2px; }
+.stagenote { margin-top: 30px; font-size: 12px; color: var(--muted); text-align: center; max-width: 52ch; line-height: 1.5; }
+
+.log h2 { display: flex; justify-content: space-between; align-items: baseline; }
+.log h2 span { font-family: var(--body); font-size: 12px; font-weight: 400; color: var(--muted); }
+.rows { list-style: none; margin: 0; padding: 0; border-top: 1.5px solid var(--ink); max-height: 640px; overflow-y: auto; }
+.rows li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 4px 10px; padding: 10px 0; border-bottom: 1px solid var(--rule); align-items: start; }
+.rows li i { width: 10px; height: 10px; border-radius: 2px; margin-top: 4px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
+.rows .what { font-size: 13px; line-height: 1.35; min-width: 0; overflow-wrap: anywhere; }
+.rows .what small { display: block; color: var(--muted); font-size: 11.5px; margin-top: 3px; }
+.rows .st { font-size: 11px; font-weight: 700; letter-spacing: .06em; white-space: nowrap; padding-top: 2px; }
+.st.wait { color: var(--muted); font-weight: 500; }
+.st.ok { color: var(--ink); }
+.st.no { color: var(--deny); }
+.counts { display: flex; gap: 18px; font-size: 12px; color: var(--muted); margin-top: 12px; font-variant-numeric: tabular-nums; }
+.counts b { color: var(--ink); }
+
+@media (max-width: 1100px) {
+  .wrap { grid-template-columns: 1fr 1fr; }
+  .stage { grid-column: 1 / -1; order: -1; }
+  header.top { order: -2; }
+}
+@media (max-width: 640px) {
+  .wrap { grid-template-columns: 1fr; gap: 28px; padding: 20px 16px 40px; }
+  h1 { font-size: 34px; }
+  .key { width: 112px; padding-top: 10px; border-radius: 11px; }
+  .key .glass { width: 98px; padding: 5px 2px 6px; border-radius: 7px; }
+  .key canvas { width: 94px; height: 175px; }
+  .key .cap { width: 94px; margin-top: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .key .cap { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Nod <span>stack simulator</span></h1>
+    <p>Three keys snapped together. Key 1 answers Claude Code, key 2 answers Codex and Gemini CLI, key 3 answers git push. Requests fall down their lane; press the key under a tile once it lands on the dashed line.</p>
+  </header>
+
+  <section class="controls" aria-label="Send requests">
+    <div>
+      <h2>Send a request</h2>
+      <div class="sendlist">
+        <button class="send" type="button" data-send="claude"><i style="background:#D97757"></i><span>Claude Code<small>runs a command</small></span></button>
+        <button class="send" type="button" data-send="claude-risky"><i style="background:#D97757"></i><span>Claude Code, risky<small>rm -rf build/</small></span></button>
+        <button class="send" type="button" data-send="codex"><i style="background:#E8E6E1"></i><span>Codex<small>runs a shell command</small></span></button>
+        <button class="send" type="button" data-send="gemini"><i style="background:#5B8DEF"></i><span>Gemini CLI<small>edits a file</small></span></button>
+        <button class="send" type="button" data-send="git"><i style="background:#3FB950"></i><span>git push<small>main to origin</small></span></button>
+        <button class="send" type="button" data-send="git-force"><i style="background:#3FB950"></i><span>git push --force<small>rewrites remote history</small></span></button>
+        <button class="send" type="button" data-send="burst"><i style="background:#141517"></i><span>Busy afternoon<small>8 requests at once</small></span></button>
+      </div>
+    </div>
+    <div>
+      <h2>How to answer</h2>
+      <dl class="how">
+        <dt>Tap</dt><dd>approve</dd>
+        <dt>Double-tap</dt><dd>deny</dd>
+        <dt>Hold 1.0 s</dt><dd>approve a risky one (red outline); a tap does nothing</dd>
+        <dt>Keys 1 2 3</dt><dd>press the keys from your keyboard</dd>
+      </dl>
+    </div>
+    <label class="toggle" for="auto"><input type="checkbox" id="auto" checked> Keep requests coming</label>
+  </section>
+
+  <section class="stage" aria-label="Three Nod keys">
+    <div class="stack" id="stack"></div>
+    <p class="stagenote">Each screen holds the 3 tiles that fit. Extra requests wait on the computer and show as +N MORE. A press before a tile lands is ignored, so you never answer something you haven't read.</p>
+  </section>
+
+  <section class="log" aria-label="What the agents get back">
+    <h2>What the agents get <span id="pending">0 waiting</span></h2>
+    <ol class="rows" id="rows" aria-live="polite"></ol>
+    <div class="counts"><span>Allowed <b id="nAllow">0</b></span><span>Denied <b id="nDeny">0</b></span></div>
+  </section>
+</div>
+
+<script>
+(() => {
+  // ------------------------------------------------------------ constants: the same numbers as the firmware
+  const W = 172, H = 320, S = 2;
+  const HIT = 288, TH = 64, THR = 96, GAP = 6, TX = 6, TW = W - 12;
+  const HOLD = 1000, DBL = 320, PRESS = 90, APPR = 780, DENY = 450, MAX_SHOWN = 3, FALL = 210; // px per second
+  const RED = "#F04438";
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const SRC = {
+    claude: { name: "CLAUDE CODE", label: "Claude Code", color: "#D97757", lane: 0, where: "athens-sound",
+      pool: [["Bash", "npm run test"], ["Edit", "src/routes.ts"], ["Write", "docs/setup.md"],
+             ["Bash", "git commit -m \"fix booking form\""], ["Bash", "npx prettier --write ."], ["Edit", "app/api/gigs.ts"]],
+      risky: [["Bash", "rm -rf build/"], ["Bash", "sudo npm i -g pnpm"]] },
+    codex: { name: "CODEX", label: "Codex", color: "#E8E6E1", lane: 1, where: "gridaid",
+      pool: [["Shell", "pytest -q"], ["Patch", "app/models.py"], ["Shell", "ruff check ."]],
+      risky: [["Shell", "sudo apt upgrade"]] },
+    gemini: { name: "GEMINI CLI", label: "Gemini CLI", color: "#5B8DEF", lane: 1, where: "lab-notes",
+      pool: [["Write", "README.md"], ["Shell", "pip install pandas"], ["Edit", "analysis/grade.py"]], risky: [] },
+    git: { name: "GIT PUSH", label: "git push", color: "#3FB950", lane: 2, where: "athens-sound-co",
+      pool: [["main to origin", "3 commits +142 -37"], ["feat/lanes", "1 commit +18 -4"], ["main to origin", "2 commits +61 -9"]],
+      risky: [["main to origin", "FORCE 1 commit +12 -40"]] },
+  };
+  const KEYNAMES = ["Claude Code", "Codex + Gemini", "git push"];
+
+  // ------------------------------------------------------------ build the three keys
+  const stack = document.getElementById("stack");
+  const lanes = [0, 1, 2].map((i) => {
+    const key = document.createElement("div");
+    key.className = "key";
+    key.innerHTML = `
+      ${i > 0 ? '<span class="magnet l"></span>' : ""}${i < 2 ? '<span class="magnet r"></span>' : ""}
+      <div class="glass"><canvas width="${W * S}" height="${H * S}" role="img" aria-label="Key ${i + 1} screen"></canvas></div>
+      <button class="cap" type="button" aria-label="Key ${i + 1}, ${KEYNAMES[i]}: tap to approve, double-tap to deny, hold for risky"><span></span><kbd>${i + 1}</kbd></button>
+      <div class="tag">Key ${i + 1} <b>${KEYNAMES[i]}</b></div>`;
+    stack.appendChild(key);
+    const canvas = key.querySelector("canvas");
+    const lane = { i, tiles: [], parked: [], ctx: canvas.getContext("2d"), cap: key.querySelector(".cap"),
+      capLabel: key.querySelector(".cap span"), down: false, downAt: 0, holdUsed: false, lastTapAt: 0,
+      pendingTapAt: 0, hold: 0, hintUntil: 0, earlyUntil: 0, ring: "" };
+    const cap = lane.cap;
+    cap.addEventListener("pointerdown", (e) => { e.preventDefault(); cap.setPointerCapture?.(e.pointerId); press(lane); });
+    cap.addEventListener("pointerup", () => release(lane));
+    cap.addEventListener("pointercancel", () => cancel(lane));
+    cap.addEventListener("keydown", (e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); press(lane); } });
+    cap.addEventListener("keyup", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); release(lane); } });
+    return lane;
+  });
+  document.addEventListener("keydown", (e) => {
+    const n = "123".indexOf(e.key);
+    if (n >= 0 && !e.repeat && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); press(lanes[n]); }
+  });
+  document.addEventListener("keyup", (e) => {
+    const n = "123".indexOf(e.key);
+    if (n >= 0) { e.preventDefault(); release(lanes[n]); }
+  });
+
+  // ------------------------------------------------------------ requests and the computer-side queue
+  let nextId = 1, nAllow = 0, nDeny = 0;
+  const rowsEl = document.getElementById("rows");
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  const live = (lane) => lane.tiles.filter((t) => t.state === "live");
+
+  function submit(srcKey, opts = {}) {
+    const s = SRC[srcKey];
+    const risky = !!opts.risky;
+    const [l1, l2] = opts.item || pick(risky && s.risky.length ? s.risky : s.pool);
+    const note = !!opts.note;
+    const t = { id: nextId++, srcKey, src: s.name, color: s.color, l1, l2, l3: opts.l3 ?? (risky ? `${s.where}  RISKY` : s.where),
+      risky, note, state: "live", y: opts.landed ? null : -TH, doneAt: 0 };
+    t.row = addRow(t);
+    const lane = lanes[s.lane];
+    if (live(lane).length < MAX_SHOWN) lane.tiles.push(t);
+    else lane.parked.push(t);
+    if (opts.landed) settle(lane, true);
+    updateRows();
+    return t;
+  }
+
+  function refill(lane) {
+    while (live(lane).length < MAX_SHOWN && lane.parked.length) lane.tiles.push(lane.parked.shift());
+    updateRows();
+  }
+
+  function finish(lane, t, state) {
+    t.state = state;
+    t.doneAt = performance.now();
+    t.ay = t.y;                                            // where the tile sat when you pressed
+    if (state === "appr" && !t.note) pulse(lane, t.risky ? RED : t.color);
+    if (t.note) { t.state = "gone"; setRow(t, "CLEARED", "ok", "note dismissed"); }
+    else if (state === "appr") { nAllow++; setRow(t, "ALLOWED", "ok", outcome(t, true)); maybeDone(t); }
+    else { nDeny++; setRow(t, "DENIED", "no", outcome(t, false)); }
+    document.getElementById("nAllow").textContent = nAllow;
+    document.getElementById("nDeny").textContent = nDeny;
+    lane.tiles = lane.tiles.filter((x) => x !== t || x.state !== "gone");
+    refill(lane);
+  }
+
+  function pulse(lane, color) {
+    if (reduced) return;
+    const cap = lane.cap;
+    cap.style.setProperty("--yes", color);
+    cap.classList.remove("yes");
+    void cap.offsetWidth;                                  // restart the CSS animation
+    cap.classList.add("yes");
+  }
+
+  function outcome(t, ok) {
+    if (t.srcKey === "git") return ok ? `To github.com:hardy/${SRC.git.where}.git  ${t.l1.split(" ")[0]} -> ${t.l1.split(" ")[0]}` : "error: failed to push, denied on the key";
+    const who = SRC[t.srcKey].label;
+    return ok ? `${who} runs it` : `${who} is told: the user denied this on their Nod key`;
+  }
+
+  function maybeDone(t) {
+    if (t.srcKey === "git" || Math.random() > 0.3) return;
+    setTimeout(() => submit(t.srcKey, { note: true, item: ["Done", t.srcKey === "claude" ? "turn finished, 14 tests pass" : "task finished"], l3: "" }), 1400);
+  }
+
+  // ------------------------------------------------------------ the log
+  function addRow(t) {
+    const li = document.createElement("li");
+    li.innerHTML = `<i style="background:${t.color}"></i><div class="what"></div><div class="st wait"></div>`;
+    li.querySelector(".what").innerHTML = `${SRC[t.srcKey].label}: ${esc(t.l1)} <b>${esc(t.l2)}</b><small></small>`;
+    rowsEl.prepend(li);
+    while (rowsEl.children.length > 40) rowsEl.lastChild.remove();
+    return li;
+  }
+  function setRow(t, word, cls, detail) {
+    const st = t.row.querySelector(".st");
+    st.textContent = word; st.className = "st " + cls;
+    t.row.querySelector("small").textContent = detail;
+  }
+  function updateRows() {
+    let waiting = 0;
+    lanes.forEach((lane) => {
+      lane.tiles.forEach((t) => { if (t.state === "live") { waiting++; setRow(t, "ON KEY " + (lane.i + 1), "wait", t.note ? "tap to clear" : t.risky ? "needs a 1.0 s hold" : "waiting for your press"); } });
+      lane.parked.forEach((t, k) => { waiting++; setRow(t, "QUEUED", "wait", `waiting on the computer, ${k + 1} in line for key ${lane.i + 1}`); });
+    });
+    document.getElementById("pending").textContent = `${waiting} waiting`;
+  }
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  // ------------------------------------------------------------ key logic (mirrors pollKey() in the firmware)
+  const lowest = (lane) => live(lane)[0] || null;
+  const ready = (lane) => { const t = lowest(lane); return !!t && t.y >= HIT - THR - 12; };
+
+  function press(lane) {
+    if (lane.down) return;
+    lane.down = true; lane.downAt = performance.now(); lane.holdUsed = false;
+    lane.cap.classList.add("down");
+  }
+  function cancel(lane) { lane.down = false; lane.hold = 0; lane.cap.classList.remove("down"); }
+  function release(lane) {
+    if (!lane.down) return;
+    lane.down = false; lane.hold = 0;
+    lane.cap.classList.remove("down");
+    if (lane.holdUsed) return;
+    const now = performance.now();
+    if (!lowest(lane)) return;
+    if (!ready(lane)) { lane.earlyUntil = now + 900; return; }        // still falling: ignored
+    if (lane.pendingTapAt && now - lane.lastTapAt < DBL) {           // second tap: deny
+      lane.pendingTapAt = 0;
+      const t = lowest(lane);
+      if (t && !t.note) finish(lane, t, "deny");
+      return;
+    }
+    lane.lastTapAt = now;
+    lane.pendingTapAt = now + DBL;
+  }
+  function tick(lane, now) {
+    const t = lowest(lane);
+    if (lane.down && !lane.holdUsed && t && t.risky && ready(lane)) {
+      lane.hold = Math.min(1, (now - lane.downAt) / HOLD);
+      if (lane.hold >= 1) { lane.holdUsed = true; lane.hold = 0; lane.pendingTapAt = 0; finish(lane, t, "appr"); }
+    }
+    if (lane.pendingTapAt && now >= lane.pendingTapAt) {
+      lane.pendingTapAt = 0;
+      const l = lowest(lane);
+      if (!l) return;
+      if (l.note) finish(lane, l, "appr");
+      else if (l.risky) lane.hintUntil = now + 900;
+      else finish(lane, l, "appr");
+    }
+  }
+
+  // ------------------------------------------------------------ physics (mirrors animate())
+  function settle(lane, snap, dt = 0) {
+    let slotBottom = HIT;
+    live(lane).forEach((t, k) => {
+      const h = k === 0 ? THR : TH;
+      const target = slotBottom - h;
+      if (t.y === null || snap || reduced) t.y = target;
+      else if (t.y < target) t.y = Math.min(target, t.y + FALL * dt);
+      else t.y = target;
+      slotBottom = target - GAP;
+    });
+  }
+
+  // ------------------------------------------------------------ drawing (mirrors render())
+  const F1 = `${10 * S}px Silkscreen, monospace`, F2 = `${17 * S}px Silkscreen, monospace`, F3 = `${22 * S}px Silkscreen, monospace`;
+  function ink(hex) {
+    const v = parseInt(hex.slice(1), 16), r = v >> 16, g = (v >> 8) & 255, b = v & 255;
+    return (r * 299 + g * 587 + b * 114) / 1000 > 110 ? "#141414" : "#FFFFFF";
+  }
+  function rr(c, x, y, w, h, r) { c.beginPath(); c.roundRect(x * S, y * S, w * S, h * S, r * S); }
+  function text(c, s, x, y, font, color, maxW) {
+    c.font = font; c.fillStyle = color; c.textBaseline = "top";
+    let str = s;
+    if (maxW) while (str.length > 1 && c.measureText(str).width > maxW * S) str = str.slice(0, -2) + ".";
+    c.fillText(str, x * S, y * S);
+  }
+  function centered(c, s, y, font, color) {
+    c.font = font; const w = c.measureText(s).width;
+    text(c, s, (W * S - w) / 2 / S, y, font, color);
+  }
+
+  function drawTile(c, lane, t, isReady, now) {
+    const h = isReady ? THR : TH;
+    let x = TX, squash = 1;
+    if (t.state === "appr") { drawYes(c, t, now); return; }
+    if (t.state === "deny") {
+      x -= reduced ? 0 : Math.min(1, (now - t.doneAt) / DENY) * 190;
+      centered(c, "DENIED", 60, F2, RED);
+    }
+    const hh = h * squash, yy = t.y + (h - hh);
+    c.fillStyle = t.color; rr(c, x, yy, TW, hh, 6); c.fill();
+    if (t.risky) { c.strokeStyle = RED; c.lineWidth = S; rr(c, x - 3, yy - 3, TW + 6, hh + 6, 8); c.stroke(); }
+    const k = ink(t.color);
+    text(c, t.risky ? "RISKY" : t.src, x + 8, yy + 7, F1, k, TW - 16);
+    text(c, t.l1, x + 8, yy + 19, F2, k, TW - 16);
+    text(c, t.l2, x + 8, yy + 40, F1, k, TW - 16);
+    if (isReady && hh > 70) {
+      text(c, t.l3, x + 8, yy + 54, F1, k, TW - 16);
+      if (t.risky) {
+        c.fillStyle = "#C6C6C6"; c.fillRect((x + 8) * S, (yy + hh - 12) * S, (TW - 16) * S, 5 * S);
+        c.fillStyle = RED; c.fillRect((x + 8) * S, (yy + hh - 12) * S, (TW - 16) * lane.hold * S, 5 * S);
+      }
+    }
+  }
+
+  // ------------------------------------------------------------ the "yes" moment
+  // 1 slam: the tile squashes onto the line and whitens (90 ms)
+  // 2 impact: the lane flashes in the source color, the line lights up, the screen jolts
+  // 3 shatter: the tile breaks into pixel blocks that fly up the lane
+  // 4 check: a check mark and ring draw themselves, pop, then fade (whole thing about 0.8 s)
+  const clamp = (v) => Math.max(0, Math.min(1, v));
+  function rgba(hex, a) {
+    const v = parseInt(hex.slice(1), 16);
+    return `rgba(${v >> 16},${(v >> 8) & 255},${v & 255},${a})`;
+  }
+  function seeded(n) {
+    let x = (n * 2654435761) >>> 0;
+    return () => ((x = (Math.imul(x, 1664525) + 1013904223) >>> 0) / 4294967296);
+  }
+  function drawYes(c, t, now) {
+    const e = now - t.doneAt, top = t.ay ?? HIT - THR, col = t.color;
+    if (e < PRESS && !reduced) {
+      const k = (e / PRESS) ** 2;
+      const hh = THR * (1 - 0.55 * k), yy = top + THR - hh;
+      c.fillStyle = col; rr(c, TX, yy, TW, hh, 6); c.fill();
+      c.fillStyle = `rgba(255,255,255,${0.6 * k})`; rr(c, TX, yy, TW, hh, 6); c.fill();
+      return;
+    }
+    const f = reduced ? 400 : e - PRESS;
+    if (f < 170) { c.fillStyle = rgba(col, 0.34 * (1 - f / 170)); c.fillRect(0, 0, W * S, H * S); }
+    if (!reduced) {
+      const rnd = seeded(t.id), cols = 8, rows = 3, cw = TW / cols, ch = (THR * 0.45) / rows, y0 = top + THR * 0.55;
+      for (let r = 0; r < rows; r++) for (let q = 0; q < cols; q++) {
+        const vx = (rnd() - 0.5) * 150, vy = -(230 + rnd() * 330), life = 420 + rnd() * 280, light = rnd() < 0.3;
+        const p = f / life;
+        if (p >= 1) continue;
+        const sec = f / 1000, sz = 1 - 0.65 * p;
+        const px = TX + q * cw + vx * sec, py = y0 + r * ch + vy * sec + 0.5 * 300 * sec * sec;
+        c.globalAlpha = 1 - p * p;
+        c.fillStyle = light ? "#FFFFFF" : col;
+        c.fillRect(px * S, py * S, Math.max(1, cw * sz - 1) * S, Math.max(1, ch * sz - 1) * S);
+      }
+      c.globalAlpha = 1;
+    }
+    const draw = clamp((f - 30) / 210), pop = 1 + 0.2 * Math.sin(Math.PI * clamp((f - 230) / 190));
+    const fade = 1 - clamp((f - (APPR - PRESS - 200)) / 200);
+    const cx = W / 2, cy = 128, R = 42 * pop;
+    c.save();
+    c.globalAlpha = fade;
+    c.lineCap = "round"; c.lineJoin = "round";
+    c.strokeStyle = col; c.lineWidth = 4 * S;
+    c.beginPath(); c.arc(cx * S, cy * S, R * S, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * draw); c.stroke();
+    const pts = [[-24, 2], [-7, 19], [26, -20]].map(([dx, dy]) => [cx + dx * pop, cy + dy * pop]);
+    const seg = pts.slice(1).map((p, i) => Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]));
+    let left = (seg[0] + seg[1]) * clamp((f - 90) / 190);
+    c.lineWidth = 8 * S;
+    c.beginPath(); c.moveTo(pts[0][0] * S, pts[0][1] * S);
+    for (let i = 0; i < 2 && left > 0; i++) {
+      const k = Math.min(1, left / seg[i]);
+      c.lineTo((pts[i][0] + (pts[i + 1][0] - pts[i][0]) * k) * S, (pts[i][1] + (pts[i + 1][1] - pts[i][1]) * k) * S);
+      left -= seg[i];
+    }
+    c.stroke();
+    c.globalAlpha = fade * clamp((f - 170) / 140);
+    centered(c, "APPROVED", cy + R + 12, F2, col);
+    c.restore();
+  }
+
+  function render(lane, now) {
+    const c = lane.ctx;
+    c.fillStyle = "#08090A"; c.fillRect(0, 0, W * S, H * S);
+    const lv = live(lane), low = lv[0], isReady = ready(lane);
+    const yes = lane.tiles.find((t) => t.state === "appr" && !t.note);
+    const since = yes ? now - yes.doneAt - PRESS : 1e9;
+    c.save();
+    if (since >= 0 && since < 130 && !reduced) c.translate(Math.round(Math.sin(since / 9) * 3 * (1 - since / 130)) * S, 0);
+    lane.tiles.forEach((t) => { if (t.state !== "live") drawTile(c, lane, t, true, now); });
+    lv.forEach((t) => drawTile(c, lane, t, t === low && isReady, now));
+    if (since >= 0 && since < 320) {                       // the line lights up on impact
+      c.fillStyle = rgba(yes.color, 1 - since / 320);
+      c.fillRect(6 * S, (HIT - 1) * S, (W - 12) * S, 3 * S);
+    }
+    c.restore();
+    c.fillStyle = "#4A4C52";
+    for (let x = 6; x < W - 6; x += 6) c.fillRect(x * S, HIT * S, 3 * S, S);
+    if (low && isReady) {
+      const msg = low.note ? "TAP TO CLEAR" : low.risky ? (now < lane.hintUntil ? "HOLD, DON'T TAP" : "HOLD 1.0 S TO RUN") : "TAP OK  2 TAPS NO";
+      text(c, msg, 8, HIT + 10, F1, low.risky ? RED : low.color);
+    } else if (low && now < lane.earlyUntil) {
+      text(c, "LET IT LAND", 8, HIT + 10, F1, "#9A9DA3");
+    } else if (!lane.tiles.length) {
+      centered(c, "ALL CLEAR", 150, F1, "#8A8D93");
+    }
+    // header last, so tiles never cover it
+    c.fillStyle = "#08090A"; c.fillRect(0, 0, W * S, 20 * S);
+    text(c, `0${lane.i + 1} PC`, 8, 6, F1, "#8A8D93");
+    text(c, "100%", W - 40, 6, F1, "#8A8D93");
+    if (lane.parked.length) {
+      c.fillStyle = "#FFFFFF"; rr(c, W / 2 - 36, 3, 72, 14, 3); c.fill();
+      centered(c, `+${lane.parked.length} MORE`, 6, F1, "#141414");
+    }
+    // key light and label follow the tile on the line
+    const ring = low && isReady ? (low.risky ? RED : low.color) : "";
+    if (ring !== lane.ring) {
+      lane.ring = ring;
+      lane.cap.style.boxShadow = ring ? `inset 0 0 0 1px #46484E, 0 0 0 3px ${ring}, 0 0 28px ${ring}88` : "inset 0 0 0 1px #46484E";
+      lane.capLabel.textContent = ring ? (low.note ? "CLEAR" : low.risky ? "HOLD" : "TAP") : "";
+    }
+  }
+
+  // ------------------------------------------------------------ loop
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    lanes.forEach((lane) => {
+      lane.tiles = lane.tiles.filter((t) => t.state === "live" || now - t.doneAt < (t.state === "appr" ? APPR : DENY));
+      tick(lane, now);
+      settle(lane, false, dt);
+      render(lane, now);
+    });
+    requestAnimationFrame(frame);
+  }
+
+  // ------------------------------------------------------------ controls and auto play
+  document.querySelectorAll("[data-send]").forEach((b) => b.addEventListener("click", () => {
+    const k = b.dataset.send;
+    if (k === "claude") submit("claude");
+    else if (k === "claude-risky") submit("claude", { risky: true, item: ["Bash", "rm -rf build/"] });
+    else if (k === "codex") submit("codex");
+    else if (k === "gemini") submit("gemini");
+    else if (k === "git") submit("git");
+    else if (k === "git-force") submit("git", { risky: true });
+    else if (k === "burst") ["claude", "codex", "claude", "git", "gemini", "claude", "codex", "claude"].forEach((s, i) => setTimeout(() => submit(s, { risky: i === 5 }), i * 120));
+  }));
+
+  const auto = document.getElementById("auto");
+  function autoplay() {
+    const waiting = lanes.reduce((n, l) => n + live(l).length + l.parked.length, 0);
+    if (auto.checked && waiting < 7 && !document.hidden) {
+      const r = Math.random();
+      if (r < 0.42) submit("claude", { risky: Math.random() < 0.15 });
+      else if (r < 0.62) submit("codex", { risky: Math.random() < 0.15 });
+      else if (r < 0.78) submit("gemini");
+      else submit("git", { risky: Math.random() < 0.2 });
+    }
+    setTimeout(autoplay, 2600 + Math.random() * 2200);
+  }
+
+  // opening state: one landed request per key, so the page is never empty
+  submit("claude", { item: ["Bash", "npm run test"], landed: true });
+  submit("codex", { item: ["Shell", "pytest -q"], landed: true });
+  submit("git", { item: ["main to origin", "3 commits +142 -37"], landed: true });
+  (document.fonts?.load ? document.fonts.load(F1) : Promise.resolve()).finally(() => requestAnimationFrame(frame));
+  setTimeout(autoplay, 3500);
+})();
+</script>
+</body>
+</html>
