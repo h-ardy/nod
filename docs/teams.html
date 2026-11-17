@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nod for teams</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Silkscreen&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="teams">
+<div id="topo" aria-hidden="true"></div>
+
+<header class="bar">
+  <a class="logo" href="index.html">nod</a>
+  <nav class="links" aria-label="Pages"><a href="individuals.html">Individuals</a><a href="teams.html" aria-current="page">Teams</a><a href="index.html#try">Try it</a></nav>
+  <a class="cta" href="index.html#list">Pre-order list</a>
+</header>
+
+<header class="page-head bp">
+  <div class="wrap rise">
+    <h1>Nod for <span>teams.</span></h1>
+    <p class="lede">Your team uses AI tools on real code. Nod makes sure a person says yes before anything risky happens.</p>
+  </div>
+</header>
+<!-- 5b. teams: the business -->
+<section class="block bp" id="teams" style="border-top:0">
+  <span class="ref" aria-hidden="true">A-01 <b>TEAMS</b></span>
+  <div class="wrap">
+    <div class="split rise">
+      <div class="a"><h2>Signed by a person.</h2></div>
+      <div class="b" style="display:flex;flex-direction:column;gap:18px">
+        <p class="lede">A bad instruction hidden in a web page or a file can talk an AI tool into almost anything. It can't press a button on your desk. With Nod for teams, a deploy or a force push only runs after a key signs for that exact action.</p>
+        <p style="font-size:15px;line-height:1.6;color:var(--ink-3)">The key works today. The rest of this page is being built, and it's marked that way.</p>
+      </div>
+    </div>
+
+    <figure class="flow rise" aria-label="How a signed approval works: the AI tool asks the Nod server, the server shows the exact action on your key, your press is signed on the key's chip, and only then does the server run the action with credentials the laptop never had.">
+      <svg viewBox="0 0 1000 290" role="img" aria-hidden="true">
+        <defs><marker id="fa" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#8FB0E0"/></marker></defs>
+        <g class="box"><rect x="20" y="40" width="210" height="84"/><text x="40" y="74" class="h">AI TOOL</text><text x="40" y="100" class="d">Claude Code, Codex, any CLI</text></g>
+        <g class="box gw"><rect x="330" y="40" width="250" height="84"/><text x="350" y="74" class="h">NOD SERVER</text><text x="350" y="100" class="d">holds the deploy and prod keys</text></g>
+        <g class="box"><rect x="690" y="40" width="290" height="84"/><text x="710" y="74" class="h">RUNS</text><text x="710" y="100" class="d">deploy, migration, force push</text></g>
+        <g class="box key"><rect x="395" y="196" width="120" height="76" rx="8"/><rect x="411" y="210" width="40" height="48" rx="3" class="scr"/><rect x="462" y="216" width="38" height="38" rx="5" class="cap"/><text x="530" y="228" class="h">NOD KEY</text><text x="530" y="252" class="d">your press, signed on the chip</text></g>
+        <path class="ln" d="M230 82H330" marker-end="url(#fa)"/><text x="244" y="70" class="s">1 ASKS</text>
+        <path class="ln" d="M432 124V196" marker-end="url(#fa)"/><text x="420" y="166" class="s" text-anchor="end">2 SHOWS THE EXACT ACTION</text>
+        <path class="ln" d="M478 196V124" marker-end="url(#fa)"/><text x="490" y="166" class="s">3 SIGNATURE</text>
+        <path class="ln" d="M580 82H690" marker-end="url(#fa)"/><text x="594" y="70" class="s">4 ONLY THEN</text>
+        <circle class="pkt" r="5"><animateMotion dur="5.2s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.22;0.45;0.62;0.8;1" keySplines=".6 0 .4 1;.6 0 .4 1;.6 0 .4 1;.6 0 .4 1;.6 0 .4 1" keyPoints="0;0.2;0.45;0.6;0.8;1" path="M230 82H432V196H478V82H690"/></circle>
+      </svg>
+    </figure>
+
+    <div class="rows feat rise">
+      <div><span class="n">Signed approvals</span><span class="d">Each press is signed by a secret that never leaves the key. Nothing on the laptop can fake one.</span><span class="st">Next</span></div>
+      <div><span class="n">Rules in a file</span><span class="d">Decide once what runs on its own, what needs a press and what needs two. The rules live with your code.</span><span class="st">Next</span></div>
+      <div><span class="n">Two keys for the big ones</span><span class="d">A deploy to production waits for a second person on the team to press their key.</span><span class="st">Later</span></div>
+      <div><span class="n">A record of who said yes</span><span class="d">Every risky change, who approved it, and proof. Ready for reviews and audits.</span><span class="st">Later</span></div>
+    </div>
+
+    <div class="split rise" style="margin-top:72px;align-items:stretch">
+      <div class="a">
+        <pre class="policy" aria-label="Example rules file"><span class="c"># nod.rules  (example)</span>
+<span class="k">run on its own</span>   npm test, pytest, git push origin feat/*
+<span class="k">needs a press</span>    git push origin main, npm publish
+<span class="k">needs a hold</span>     rm -rf, git push --force
+<span class="k">needs two keys</span>   deploy prod, db migrate</pre>
+      </div>
+      <div class="b honest">
+        <div><h3>What it stops</h3><p>An AI tool running something risky without a person pressing a key. Malware on a laptop faking a press. Someone swapping the action after you read it.</p></div>
+        <div><h3>What it doesn't</h3><p>Anything that never goes through Nod, like a password already saved on the laptop. That's why the keys that matter move to the Nod server.</p></div>
+      </div>
+    </div>
+
+    <ol class="road rise" aria-label="Roadmap">
+      <li class="done"><b>Now</b><span>The key, firmware and laptop app. Open source.</span></li>
+      <li class="cur"><b>Next</b><span>Signed presses, the rules file, the Nod server</span></li>
+      <li><b>After</b><span>Team dashboard, two-key approvals, audit export, paid pilots</span></li>
+    </ol>
+  </div>
+</section>
+
+<section class="block bp" id="security">
+  <span class="ref" aria-hidden="true">A-02 <b>SECURITY</b></span>
+  <div class="wrap">
+    <div class="split rise">
+      <div class="a"><h2>A security key for what your AI tools do.</h2></div>
+      <div class="b"><p class="lede">A security key proves it's really you when you log in. Nod proves a real person said yes to a specific change. That's what security teams and auditors keep asking for.</p></div>
+    </div>
+    <div class="rows feat rise">
+      <div><span class="n">Proof for audits</span><span class="d">Every risky change, who approved it, when, and a signature to prove it. Export it when an auditor asks how changes get approved.</span><span class="st">Next</span></div>
+      <div><span class="n">Fits your tools</span><span class="d">Approvals go to the logging and alerting your security team already watches. Keys follow your company sign-in, so they stop working when someone leaves.</span><span class="st">Later</span></div>
+      <div><span class="n">Your login key too</span><span class="d">Nod's chip is the same family used by open-source login security keys. The plan is one key on your desk for signing in and for saying yes. It would need its own certification first.</span><span class="st">Exploring</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="block bp" id="checks">
+  <span class="ref" aria-hidden="true">A-03 <b>SITE CHECKS</b></span>
+  <div class="wrap split rise">
+    <div class="a"><h2>Built your site with AI? Let's check it.</h2></div>
+    <div class="b" style="display:flex;flex-direction:column;gap:18px">
+      <p class="lede">A lot of new sites are written mostly by AI tools, and they ship with the same holes: keys left in the code, pages anyone can open, forms that trust anything. I test sites like that, show you what got through, and help you fix it.</p>
+      <p style="font-size:15px;line-height:1.6;color:var(--ink-3)">Offered now, while the Nod server is being built. Ask through the pilot form.</p>
+    </div>
+  </div>
+</section>
+
+<section class="block bp" style="padding:96px 0">
+  <div class="wrap split rise" style="align-items:center">
+    <div class="a"><h2>Want to try it with your team, or get your site checked?</h2></div>
+    <div class="b"><a class="bigcta" href="index.html#list">Ask about a pilot</a></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>Made by Hardy Wang in Ohio. <a href="https://github.com/h-ardy/nod">Code on GitHub</a> · <a href="simulator.html">Stack simulator</a></span>
+    <span style="max-width:640px">Nod works with Claude, Codex, Gemini and other tools. It is an independent project, not made by or affiliated with Anthropic, OpenAI or Google.</span>
+  </div>
+</footer>
+<script src="site.js"></script>
+</body>
+</html>
