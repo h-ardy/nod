@@ -478,21 +478,31 @@ nod ask --source ${id} --l1 ${q(c.l1.slice(0, 24))}${c.l2 ? ' --l2 ' + q(c.l2) :
   function land() {
     window.scrollTo({ top: list.getBoundingClientRect().top + scrollY, behavior: 'instant' });
     list.classList.add('landed');
-    requestAnimationFrame(() => { fill.className = 'fade'; setTimeout(() => { fill.className = ''; fill.removeAttribute('style'); }, 420); });
+    requestAnimationFrame(() => { fill.className = 'on fade'; setTimeout(() => { fill.className = ''; fill.removeAttribute('style'); }, 420); });
     const f = list.querySelector('input'); if (f) setTimeout(() => f.focus({ preventScroll: true }), 450);
   }
   function go(e) {
     if (e.metaKey || e.ctrlKey || e.shiftKey) return;
     e.preventDefault();
     if (fill.className) return;
+    const btn = e.currentTarget;
     const next = () => { if (home) land(); else { sessionStorage.setItem('nodFill', '1'); location.href = 'index.html#list'; } };
     if (reduced) { next(); return; }
-    // start exactly where the button is, with its corners, then grow to the whole window
-    const r = e.currentTarget.getBoundingClientRect(), rad = getComputedStyle(e.currentTarget).borderRadius;
-    fill.style.clipPath = `inset(${r.top}px ${innerWidth - r.right}px ${innerHeight - r.bottom}px ${r.left}px round ${rad})`;
+    const r = btn.getBoundingClientRect(), rad = parseFloat(getComputedStyle(btn).borderTopLeftRadius) || 6;
+    const T = r.top, Rt = innerWidth - r.right, B = innerHeight - r.bottom, L = r.left;
+    const nearTop = T <= B, nearRight = Rt <= L;
+    const ins = (t, rr, b, l, k) => `inset(${t}px ${rr}px ${b}px ${l}px round ${k}px)`;
+    // step 1: reach the two closest edges. step 2: the other two
+    const mid = ins(nearTop ? 0 : T, nearRight ? 0 : Rt, nearTop ? B : 0, nearRight ? L : 0, rad);
+    fill.style.clipPath = ins(T, Rt, B, L, rad);
     fill.className = 'on';
-    requestAnimationFrame(() => requestAnimationFrame(() => { fill.className = 'on grow'; fill.style.clipPath = 'inset(0px 0px 0px 0px round 0px)'; }));
-    setTimeout(next, 620);
+    btn.style.visibility = 'hidden';
+    const anim = fill.animate([
+      { clipPath: ins(T, Rt, B, L, rad), easing: 'cubic-bezier(.55,0,.25,1)' },
+      { clipPath: mid, offset: 0.42, easing: 'cubic-bezier(.55,0,.25,1)' },
+      { clipPath: ins(0, 0, 0, 0, 0) },
+    ], { duration: 680, fill: 'forwards' });
+    anim.onfinish = () => { fill.style.clipPath = 'none'; anim.cancel(); setTimeout(() => { btn.style.visibility = ''; }, 500); next(); };
   }
   document.querySelectorAll('a[href$="#list"]').forEach((a) => a.addEventListener('click', go));
   if (home && sessionStorage.getItem('nodFill')) {
@@ -516,41 +526,83 @@ nod ask --source ${id} --l1 ${q(c.l1.slice(0, 24))}${c.l2 ? ' --l2 ' + q(c.l2) :
   });
 })();
 
-// ---------- intro: "Sit back and ___". The last word turns on a drum, always moving, slowing on each word
+// ---------- intro: "Sit back and ___". The drum turns on a timer: nod, relax, approve, trust, and around again
 if (document.getElementById('intro')) {
-  const WORDS = ['nod', 'relax', 'approve', 'trust', 'nod', 'relax', 'approve', 'trust'], N = WORDS.length, STEP = 360 / N, PERIOD = 2400;
+  const WORDS = ['nod', 'relax', 'approve', 'trust', 'nod', 'relax', 'approve', 'trust'], N = WORDS.length, STEP = 360 / N, TURNS = 4;
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const drum = document.querySelector('#intro .drum'), live = document.getElementById('wheelWord');
+  const intro = document.getElementById('intro'), drum = intro.querySelector('.drum'), live = document.getElementById('wheelWord');
   const faces = WORDS.map((w) => { const f = document.createElement('span'); f.className = 'face'; f.textContent = w; drum.appendChild(f); return f; });
   const R = 0.5 / Math.tan(Math.PI / N);
   faces.forEach((f, i) => { f.style.transform = `rotateX(${-i * STEP}deg) translateZ(${R}em)`; });
-  let onScreen = true, shown = -1;
-  function paint(a) {
+  let a = 0, shown = -1;
+  const sm = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+  function paint() {
     drum.style.transform = `translateZ(${-R}em) rotateX(${a}deg)`;
     faces.forEach((f, i) => {
-      const d = ((a - i * STEP) % 360 + 540) % 360 - 180, q = Math.cos(d * Math.PI / 180);
-      f.classList.toggle('front', Math.abs(d) < STEP / 2);
-      f.style.opacity = Math.abs(d) > 80 ? 0 : (Math.abs(d) < STEP / 2 ? 0.35 + 0.65 * Math.pow(q, 6) : 0.2 * q).toFixed(3);
+      const d = Math.abs(((a - i * STEP) % 360 + 540) % 360 - 180);           // degrees away from the front
+      const front = 1 - sm(d / STEP);                                            // 1 at the front, 0 one step away
+      const vis = d >= 88 ? 0 : Math.cos(d * Math.PI / 180);                    // fades out as it turns over the top or bottom
+      f.style.opacity = vis.toFixed(3);
+      f.style.color = `rgba(229,181,58,${front.toFixed(3)})`;
+      f.style.webkitTextStroke = `1.5px rgba(237,235,228,${(0.5 * (1 - front)).toFixed(3)})`;
+      f.style.borderTopColor = `rgba(237,235,228,${(0.32 * vis).toFixed(3)})`;
     });
     const w = Math.round(a / STEP) % N;
-    if (w !== shown) { shown = w; live.textContent = WORDS[w]; }
+    if (w !== shown) { shown = w; live.textContent = WORDS[(w + N) % N]; }
   }
-  // position = whole steps plus an eased fraction. x - sin(2πx)/2π never stops completely and never goes backwards
+  // on a timer: each word holds, then the drum turns smoothly to the next. Never stops dead, never jumps
+  const PERIOD = 2600;                                       // ms per word
   const ease = (x) => x - Math.sin(2 * Math.PI * x) / (2 * Math.PI);
-  const t0 = performance.now() + 900;
+  let onScreen = true, t0 = performance.now() + 900, pausedAt = 0;
   function frame(now) {
     if (onScreen) {
       const t = Math.max(0, now - t0) / PERIOD, n = Math.floor(t);
-      paint(STEP * (n + ease(t - n)));
+      a = STEP * (n + (reduced ? 0 : ease(t - n)));
+      paint();
     }
     requestAnimationFrame(frame);
   }
-  paint(0);
-  if (reduced) { let i = 0; setInterval(() => { if (onScreen) paint(STEP * ++i); }, PERIOD); }
-  else requestAnimationFrame(frame);
-  new IntersectionObserver((es) => es.forEach((e) => { onScreen = e.isIntersecting && e.intersectionRatio > 0; })).observe(document.getElementById('intro'));
-  const c = document.querySelector('#intro canvas'), x = c.getContext('2d');
+  new IntersectionObserver((es) => es.forEach((e) => {
+    const vis = e.isIntersecting && e.intersectionRatio > 0;
+    if (!vis && onScreen) pausedAt = performance.now();
+    if (vis && !onScreen && pausedAt) t0 += performance.now() - pausedAt;   // pick up where it left off
+    onScreen = vis;
+  })).observe(intro);
+  paint(); requestAnimationFrame(frame);
+  const c = intro.querySelector('canvas'), x = c.getContext('2d');
   c.width = 1800; c.height = 1100;
   window.drawContours(x, c.width, c.height, { step: 5, levels: 40, scale: 1 / 520, seed: 5, line: 'rgba(237,235,228,.16)', major: 'rgba(229,181,58,.42)', lw: 1.1, mw: 1.6 });
 }
 
+
+// ---------- a short gradient trail on white text, wherever the mouse goes
+(() => {
+  if (!matchMedia('(hover: hover) and (pointer: fine)').matches || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const SEL = '.logo, .intro-line .t, h2, .page-head h1, .forlabel, .forstrip b, .way h2, .rows .n, .honest h3, .gestures h3';
+  const LIFE = 650, COLORS = ['229,181,58', '246,208,106', '143,176,224', '217,119,87'];
+  const live = new Map();                                   // element -> { pts, base }
+  let raf = 0, hue = 0;
+  addEventListener('pointermove', (e) => {
+    const el = e.target.closest && e.target.closest(SEL);
+    if (!el || el.closest('.sheet')) return;               // the blue blueprint sheet keeps its own colors
+    let st = live.get(el);
+    if (!st) { st = { pts: [], base: getComputedStyle(el).color }; live.set(el, st); }
+    const r = el.getBoundingClientRect(), fs = parseFloat(getComputedStyle(el).fontSize);
+    hue = (hue + 1) % (COLORS.length * 6);
+    st.pts.push({ x: e.clientX - r.left, y: e.clientY - r.top, t: performance.now(), c: COLORS[Math.floor(hue / 6)], s: Math.max(18, fs * 0.55) });
+    if (st.pts.length > 28) st.pts.shift();
+    if (!raf) raf = requestAnimationFrame(tick);
+  }, { passive: true });
+  function tick(now) {
+    raf = 0;
+    for (const [el, st] of live) {
+      st.pts = st.pts.filter((p) => now - p.t < LIFE);
+      if (!st.pts.length) { el.classList.remove('trail-on'); el.style.backgroundImage = ''; live.delete(el); continue; }
+      const blobs = st.pts.map((p) => { const k = 1 - (now - p.t) / LIFE, a = (k * k).toFixed(3);
+        return `radial-gradient(circle ${p.s.toFixed(0)}px at ${p.x.toFixed(0)}px ${p.y.toFixed(0)}px, rgba(${p.c},${a}), rgba(${p.c},0))`; });
+      el.style.backgroundImage = blobs.reverse().join(',') + `, linear-gradient(${st.base}, ${st.base})`;
+      el.classList.add('trail-on');
+    }
+    if (live.size) raf = requestAnimationFrame(tick);
+  }
+})();

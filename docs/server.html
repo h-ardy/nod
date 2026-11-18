@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nod server</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Silkscreen&display=swap">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+</head>
+<body data-page="server">
+<div id="topo" aria-hidden="true"></div>
+
+<header class="bar">
+  <a class="logo" href="index.html">nod</a>
+  <nav class="links" aria-label="Pages"><a href="individuals.html">Individuals</a><a href="teams.html">Teams</a><a href="server.html" aria-current="page">Server</a><a href="index.html#try">Try it</a></nav>
+  <a class="cta" href="index.html#list">Pre-order list</a>
+</header>
+
+<header class="page-head bp">
+  <div class="wrap rise">
+    <h1>Nod <span>server.</span></h1>
+    <p class="lede">The key is how a person says yes. The Nod server is what makes that yes count, for any request you send it, on any machine your team uses.</p>
+    <p style="font-size:15px;line-height:1.6;color:var(--ink-3);margin-top:18px">I'm building the server now. The key, the laptop app and site checks work today. Everything else on this page is marked with when it's coming.</p>
+  </div>
+</header>
+<section class="block bp" id="how" style="border-top:0">
+  <span class="ref" aria-hidden="true">S-01 <b>HOW IT WORKS</b></span>
+  <div class="wrap">
+    <div class="split rise">
+      <div class="a"><h2>A yes that happens off the laptop.</h2></div>
+      <div class="b"><p class="lede">Today the key talks to the app on your own computer. That's fine for one person. The server sits between your AI tools and the things that matter: deploys, your database, payments. It holds the passwords for those, and it only uses them after a key signs for the exact action on its screen.</p></div>
+    </div>
+<figure class="flow rise" aria-label="How a signed approval works: the AI tool asks the Nod server, the server shows the exact action on your key, your press is signed on the key's chip, and only then does the server run the action with credentials the laptop never had.">
+      <svg viewBox="0 0 1000 290" role="img" aria-hidden="true">
+        <defs><marker id="fa" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#8FB0E0"/></marker></defs>
+        <g class="box"><rect x="20" y="40" width="210" height="84"/><text x="40" y="74" class="h">AI TOOL</text><text x="40" y="100" class="d">Claude Code, Codex, any CLI</text></g>
+        <g class="box gw"><rect x="330" y="40" width="250" height="84"/><text x="350" y="74" class="h">NOD SERVER</text><text x="350" y="100" class="d">holds the deploy and prod keys</text></g>
+        <g class="box"><rect x="690" y="40" width="290" height="84"/><text x="710" y="74" class="h">RUNS</text><text x="710" y="100" class="d">deploy, migration, force push</text></g>
+        <g class="box key"><rect x="395" y="196" width="120" height="76" rx="8"/><rect x="411" y="210" width="40" height="48" rx="3" class="scr"/><rect x="462" y="216" width="38" height="38" rx="5" class="cap"/><text x="530" y="228" class="h">NOD KEY</text><text x="530" y="252" class="d">your press, signed on the chip</text></g>
+        <path class="ln" d="M230 82H330" marker-end="url(#fa)"/><text x="244" y="70" class="s">1 ASKS</text>
+        <path class="ln" d="M432 124V196" marker-end="url(#fa)"/><text x="420" y="166" class="s" text-anchor="end">2 SHOWS THE EXACT ACTION</text>
+        <path class="ln" d="M478 196V124" marker-end="url(#fa)"/><text x="490" y="166" class="s">3 SIGNATURE</text>
+        <path class="ln" d="M580 82H690" marker-end="url(#fa)"/><text x="594" y="70" class="s">4 ONLY THEN</text>
+        <circle class="pkt" r="5"><animateMotion dur="5.2s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.22;0.45;0.62;0.8;1" keySplines=".6 0 .4 1;.6 0 .4 1;.6 0 .4 1;.6 0 .4 1;.6 0 .4 1" keyPoints="0;0.2;0.45;0.6;0.8;1" path="M230 82H432V196H478V82H690"/></circle>
+      </svg>
+    </figure>
+  </div>
+</section>
+
+<section class="block bp" id="custom">
+  <span class="ref" aria-hidden="true">S-02 <b>CUSTOM PUSHES</b></span>
+  <div class="wrap">
+    <div class="split rise">
+      <div class="a"><h2>Anything can ask.</h2></div>
+      <div class="b"><p class="lede">Not just AI tools. A deploy script, a refund over $100, a cron job that deletes old data, a message going out to every customer. You decide who gets the request, how many keys it needs, and the name and color it shows on the screen.</p></div>
+    </div>
+    <div class="rows feat rise">
+      <div><span class="n">Your own requests</span><span class="d">Any script on your laptop can ask the key with one line. Pick a name and a color for each kind of request.</span><span class="st">Now</span></div>
+      <div><span class="n">Requests from anywhere</span><span class="d">Servers, build pipelines and scheduled jobs send requests to the Nod server, and it finds the right key.</span><span class="st">Next</span></div>
+      <div><span class="n">Who approves what</span><span class="d">Payments go to finance, production goes to the on-call engineer, and the biggest changes need two people.</span><span class="st">Next</span></div>
+    </div>
+    <div class="rise" style="margin-top:56px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:40px;align-items:start" id="srvrules">
+      <div>
+        <pre class="policy" aria-label="Example server rules"><span class="c"># Nod server rules  (example, not built yet)</span>
+<span class="k">refund over $100</span>     1 press, finance
+<span class="k">deploy prod</span>          2 keys, engineering
+<span class="k">delete old data</span>      hold, on-call
+<span class="k">email all users</span>      1 press, anyone on the team</pre>
+      </div>
+      <div><p class="lede" style="font-size:18px">Try the part that works today on the <a href="individuals.html#make" style="color:var(--ink);text-decoration:underline;text-underline-offset:4px">Individuals page</a>. You can make a request, see it on the key and copy the command.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block bp" id="security">
+  <span class="ref" aria-hidden="true">S-03 <b>SECURITY</b></span>
+  <div class="wrap">
+    <div class="split rise">
+      <div class="a"><h2>Built so a yes can't be faked.</h2></div>
+      <div class="b"><p class="lede">An AI tool can be tricked by a bad instruction hidden in a web page or a file. Malware can pretend to be you. Neither can press a key on your desk, so the server only trusts presses it can check.</p></div>
+    </div>
+    <div class="rows feat rise">
+      <div><span class="n">Signed presses</span><span class="d">Each press is signed by a secret that never leaves the key. Nothing on the laptop can make one.</span><span class="st">Next</span></div>
+      <div><span class="n">Passwords stay on the server</span><span class="d">The laptop and the AI tool never hold the deploy or database passwords, so they can't skip the key.</span><span class="st">Next</span></div>
+      <div><span class="n">What you see is what you sign</span><span class="d">The key signs what its own screen shows. If someone swaps the action after you read it, the signature won't match.</span><span class="st">Next</span></div>
+      <div><span class="n">A record of every yes</span><span class="d">What ran, who approved it, when, and the signature. Ready when an auditor asks.</span><span class="st">Later</span></div>
+    </div>
+    <div class="honest rise" style="margin-top:56px">
+      <div><h3>What it stops</h3><p>An AI tool running something risky without a person pressing a key. Malware on a laptop faking a press. Someone changing the action after you read it.</p></div>
+      <div><h3>What it doesn't</h3><p>Anything that never goes through Nod, like a password still saved on a laptop. Someone holding your key. That's why the passwords that matter move to the server.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block bp" id="vibe">
+  <span class="ref" aria-hidden="true">S-04 <b>VIBECODE PROTECTION</b></span>
+  <div class="wrap">
+    <div class="split rise">
+      <div class="a"><h2>Built your site with AI? Protect it.</h2></div>
+      <div class="b"><p class="lede">Sites written mostly by AI tools tend to ship with the same holes: keys left in the code, pages anyone can open, forms that trust anything. Fixing them once isn't enough when the next prompt can bring them back.</p></div>
+    </div>
+    <div class="rows feat rise">
+      <div><span class="n">A check before launch</span><span class="d">I test your site the way an attacker would, show you what got through, and help you fix it.</span><span class="st">Now</span></div>
+      <div><span class="n">A press before production</span><span class="d">Changes to your live site, your database or your payments wait for your key, so the AI tool can't ship them alone.</span><span class="st">Next</span></div>
+      <div><span class="n">Checks on every push</span><span class="d">The server runs the same checks each time your AI tool pushes, and asks your key before anything that failed goes live.</span><span class="st">Later</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="block bp">
+  <span class="ref" aria-hidden="true">S-05 <b>PLAN</b></span>
+  <div class="wrap">
+    <div class="split rise">
+      <div class="a"><h2>Where it stands.</h2></div>
+      <div class="b"><p class="lede">I'd rather show you the real plan than a finished-looking page.</p></div>
+    </div>
+    <ol class="road rise" aria-label="Roadmap">
+      <li class="done"><b>Now</b><span>The key, the laptop app, your own requests, site checks</span></li>
+      <li class="cur"><b>Next</b><span>The Nod server, signed presses, rules for who approves what</span></li>
+      <li><b>After</b><span>Team dashboard, two-key approvals, checks on every push, audit export</span></li>
+    </ol>
+  </div>
+</section>
+
+<section class="block bp" style="padding:96px 0">
+  <div class="wrap split rise" style="align-items:center">
+    <div class="a"><h2>Want early access to the server, or a check on your site?</h2></div>
+    <div class="b"><a class="bigcta" href="index.html#list">Ask about a pilot</a></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>Made by Hardy Wang in Ohio. <a href="https://github.com/h-ardy/nod">Code on GitHub</a> · <a href="simulator.html">Stack simulator</a></span>
+    <span style="max-width:640px">Nod works with Claude, Codex, Gemini and other tools. It is an independent project, not made by or affiliated with Anthropic, OpenAI or Google.</span>
+  </div>
+</footer>
+<script src="site.js"></script>
+</body>
+</html>

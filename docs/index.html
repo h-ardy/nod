@@ -7,22 +7,27 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Silkscreen&display=swap">
 <link rel="stylesheet" href="style.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 </head>
 <body data-page="home">
 <div id="topo" aria-hidden="true"></div>
 
 <header class="bar">
   <a class="logo" href="index.html">nod</a>
-  <nav class="links" aria-label="Pages"><a href="individuals.html">Individuals</a><a href="teams.html">Teams</a><a href="index.html#try">Try it</a></nav>
+  <nav class="links" aria-label="Pages"><a href="individuals.html">Individuals</a><a href="teams.html">Teams</a><a href="server.html">Server</a><a href="index.html#try">Try it</a></nav>
   <a class="cta" href="index.html#list">Pre-order list</a>
 </header>
 
-<!-- intro: Sit back and ___ -->
+<!-- intro: Sit back and ___. The wheel turns as you scroll -->
 <section id="intro" aria-label="Sit back and nod">
-  <canvas aria-hidden="true"></canvas>
-  <h1 class="intro-line"><span class="row">Sit back</span><span class="row">and <span class="wheel"><span class="drum" aria-hidden="true"></span></span></span>
-    <span class="sr">nod</span></h1>
-  <p class="sr" id="wheelWord" aria-live="off">nod</p>
+  <div class="intro-stage">
+    <canvas aria-hidden="true"></canvas>
+    <h1 class="intro-line"><span class="row"><span class="t">Sit back</span></span><span class="row"><span class="t">and</span> <span class="wheel"><span class="drum" aria-hidden="true"></span></span></span>
+      <span class="sr">nod</span></h1>
+    <p class="sr" id="wheelWord" aria-live="off">nod</p>
+  </div>
 </section>
 <!-- 1. hero: the key lying screen-up. Scroll takes it apart, drag turns it, hover names each part, the keycap presses. -->
 <section id="hero" aria-label="Sit back and nod">
@@ -37,7 +42,7 @@
 
 <!-- Nod for ... -->
 <section id="for" aria-label="Who Nod is for">
-  <div class="forstrip"><div class="track"><a href="individuals.html" class="hi">Nod for <b>individuals</b></a><a href="teams.html" class="hi">Nod for <b>teams</b></a><a href="individuals.html#make" class="">Nod for <b>makers</b></a><a href="teams.html#security" class="">Nod for <b>vibecoders</b></a><a href="teams.html#security" class="">Nod for <b>enterprises</b></a><a href="teams.html" class="">Nod for <b>entrepreneurs</b></a><a href="teams.html#security" class="">Nod for <b>security teams</b></a><a href="teams.html" class="">Nod for <b>startups</b></a><a href="individuals.html#price" class="">Nod for <b>students</b></a><a href="individuals.html" class="">Nod for <b>open source</b></a><a href="teams.html" class="">Nod for <b>agencies</b></a><a href="individuals.html" class="">Nod for <b>hackathons</b></a><a href="individuals.html" class="">Nod for <b>everyone else</b></a><span aria-hidden="true" style="display:contents"><a tabindex="-1" href="individuals.html" class="hi">Nod for <b>individuals</b></a><a tabindex="-1" href="teams.html" class="hi">Nod for <b>teams</b></a><a tabindex="-1" href="individuals.html#make" class="">Nod for <b>makers</b></a><a tabindex="-1" href="teams.html#security" class="">Nod for <b>vibecoders</b></a><a tabindex="-1" href="teams.html#security" class="">Nod for <b>enterprises</b></a><a tabindex="-1" href="teams.html" class="">Nod for <b>entrepreneurs</b></a><a tabindex="-1" href="teams.html#security" class="">Nod for <b>security teams</b></a><a tabindex="-1" href="teams.html" class="">Nod for <b>startups</b></a><a tabindex="-1" href="individuals.html#price" class="">Nod for <b>students</b></a><a tabindex="-1" href="individuals.html" class="">Nod for <b>open source</b></a><a tabindex="-1" href="teams.html" class="">Nod for <b>agencies</b></a><a tabindex="-1" href="individuals.html" class="">Nod for <b>hackathons</b></a><a tabindex="-1" href="individuals.html" class="">Nod for <b>everyone else</b></a></span></div></div>
+  <div class="forstrip"><span class="forlabel" aria-hidden="true">Nod for</span><div class="track"><a href="individuals.html" class="hi"><b>individuals</b></a><a href="teams.html" class="hi"><b>teams</b></a><a href="individuals.html#make" class=""><b>makers</b></a><a href="server.html#vibe" class=""><b>vibecoders</b></a><a href="teams.html#security" class=""><b>enterprises</b></a><a href="teams.html" class=""><b>entrepreneurs</b></a><a href="server.html#security" class=""><b>security teams</b></a><a href="teams.html" class=""><b>startups</b></a><a href="individuals.html#price" class=""><b>students</b></a><a href="teams.html" class=""><b>agencies</b></a><a href="individuals.html" class=""><b>hackathons</b></a><a href="individuals.html" class=""><b>everyone else</b></a><span aria-hidden="true" style="display:contents"><a tabindex="-1" href="individuals.html" class="hi"><b>individuals</b></a><a tabindex="-1" href="teams.html" class="hi"><b>teams</b></a><a tabindex="-1" href="individuals.html#make" class=""><b>makers</b></a><a tabindex="-1" href="server.html#vibe" class=""><b>vibecoders</b></a><a tabindex="-1" href="teams.html#security" class=""><b>enterprises</b></a><a tabindex="-1" href="teams.html" class=""><b>entrepreneurs</b></a><a tabindex="-1" href="server.html#security" class=""><b>security teams</b></a><a tabindex="-1" href="teams.html" class=""><b>startups</b></a><a tabindex="-1" href="individuals.html#price" class=""><b>students</b></a><a tabindex="-1" href="teams.html" class=""><b>agencies</b></a><a tabindex="-1" href="individuals.html" class=""><b>hackathons</b></a><a tabindex="-1" href="individuals.html" class=""><b>everyone else</b></a></span></div></div>
 </section>
 
 <!-- 3. try it: a working key, same rules as the firmware -->
