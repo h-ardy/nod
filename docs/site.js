@@ -606,3 +606,35 @@ if (document.getElementById('intro')) {
     if (live.size) raf = requestAnimationFrame(tick);
   }
 })();
+
+// ---------- Dibu: pops up when his spot scrolls into view, and his eyes follow the pointer smoothly
+(() => {
+  const spots = document.querySelectorAll('.fred-ledge, .fred-side');
+  if (spots.length) {
+    const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('up'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -10% 0px' });
+    spots.forEach((s) => io.observe(s));
+  }
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const dogs = [...document.querySelectorAll('.fred-svg')].map((el) => ({ el, p: el.querySelector('.pupils'), x: 0, y: 0, tx: 0, ty: 0 }));
+  if (!dogs.length) return;
+  let px = -1, py = -1, raf = 0;
+  const tick = () => {
+    raf = 0;
+    let moving = false;
+    for (const d of dogs) {
+      const r = d.el.getBoundingClientRect();
+      if (r.bottom < 0 || r.top > innerHeight || r.width === 0) continue;
+      if (px >= 0) {
+        const dx = px - (r.left + r.width / 2), dy = py - (r.top + r.height * 0.5);
+        const dist = Math.hypot(dx, dy) || 1, m = Math.min(1, dist / 380) * 3.4;
+        d.tx = (dx / dist) * m; d.ty = (dy / dist) * m;
+      }
+      d.x += (d.tx - d.x) * 0.14; d.y += (d.ty - d.y) * 0.14;
+      if (Math.abs(d.tx - d.x) > 0.02 || Math.abs(d.ty - d.y) > 0.02) moving = true;
+      d.p.setAttribute('transform', `translate(${d.x.toFixed(2)} ${d.y.toFixed(2)})`);
+    }
+    if (moving) raf = requestAnimationFrame(tick);
+  };
+  addEventListener('pointermove', (e) => { px = e.clientX; py = e.clientY; if (!raf) raf = requestAnimationFrame(tick); }, { passive: true });
+  addEventListener('scroll', () => { if (!raf && px >= 0) raf = requestAnimationFrame(tick); }, { passive: true });
+})();
