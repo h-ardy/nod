@@ -111,7 +111,7 @@ document.getElementById('pilot').addEventListener('submit', (e) => {
   const v = document.getElementById('pemail').value.trim().replace(/^mailto:/i, '').replace(/^<|>$/g, '').trim();
   const size = (document.getElementById('psize').value.match(/\d+/) || [''])[0];
   document.getElementById('pnote').textContent = /\S+@\S+\.\S+/.test(v)
-    ? `Preview only: nothing was sent${size ? ` (team of ${size})` : ''}. Pilot sign-ups open when the gateway does.`
+    ? `Preview only: nothing was sent${size ? ` (team of ${size})` : ''}. Pilot sign-ups open when the Nod server does.`
     : 'That doesn’t look like an email address.';
 });
 

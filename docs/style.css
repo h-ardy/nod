@@ -442,3 +442,16 @@
   /* mouse trail on white text: set from script */
   .trail-on{-webkit-background-clip:text !important;background-clip:text !important;color:transparent !important}
 @media (max-width:760px){#srvrules{grid-template-columns:minmax(0,1fr)!important}}
+  .legal-nav{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:36px;font-family:var(--mono);font-size:13px;letter-spacing:.08em;text-transform:uppercase}
+  .legal-nav a{color:var(--ink-2);text-decoration:none;border-bottom:1px solid rgba(143,176,224,.4);padding-bottom:3px}
+  .legal-nav a:hover{color:var(--ink)}
+  .legal{max-width:720px}
+  .legal h3{font-family:var(--display);font-size:24px;font-weight:700;letter-spacing:-.01em;margin:44px 0 12px}
+  .legal p,.legal li{font-size:17px;line-height:1.7;color:var(--ink-2)}
+  .legal p{margin:0 0 14px}
+  .legal ul{margin:0 0 14px;padding-left:20px}
+  .legal li{margin-bottom:8px}
+  .legal a{color:var(--ink);text-underline-offset:4px}
+  .legal code{font-family:var(--mono);font-size:14px;color:var(--ink)}
+  .upd{font-family:var(--mono);font-size:13px;color:var(--ink-3);letter-spacing:.06em}
+  footer .legal-links a{margin-right:14px}
