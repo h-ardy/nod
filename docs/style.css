@@ -486,7 +486,6 @@
   .fred-ledge{position:absolute;right:7%;bottom:100%;width:150px;height:175px;overflow:hidden;pointer-events:none}
   .fred-ledge .fred-svg{position:absolute;left:0;bottom:0;pointer-events:auto;transform:translateY(102%);transition:transform 1200ms var(--dibu)}
   .fred-ledge.up .fred-svg{transform:translateY(0)}
-  .fred-ledge.up .fred-svg:hover{transform:translateY(-14px);transition-duration:600ms}
   /* poking in from the left or right edge */
   .fred-side{position:absolute;left:0;top:-30px;z-index:2;display:flex;align-items:center;gap:6px;pointer-events:none}
   .fred-side.right{left:auto;right:0;flex-direction:row-reverse}
@@ -505,3 +504,14 @@
   @media (max-width:700px){.fred-ledge{width:104px;height:122px;right:18px}}
   .fred-meet{max-width:340px;margin:0 auto 0 0}
   @media (prefers-reduced-motion: reduce){.fred-svg .eyes,.fred-svg .ear-r{animation:none}.fred-ledge .fred-svg,.fred-side .fred-svg,.fred-say{transition:none}}
+
+  .hp{position:absolute!important;left:-9999px!important;width:1px;height:1px;opacity:0}
+  form button:disabled{opacity:.6;cursor:progress}
+  .formfine{font-size:13px;line-height:1.6;color:rgba(21,20,15,.72);margin-top:40px}
+  .formfine a{color:inherit;text-underline-offset:3px}
+  /* Dibu's paws hang over the footer edge, in front of it */
+  .fred-paws{position:absolute;right:7%;top:-21px;width:150px;z-index:3;pointer-events:none;opacity:0;transform:translateY(-16px);transition:opacity 500ms var(--dibu) 650ms,transform 800ms var(--dibu) 650ms}
+  .fred-paws svg{display:block;width:100%;height:auto;overflow:visible}
+  .fred-ledge.up + .fred-paws{opacity:1;transform:none}
+  @media (max-width:700px){.fred-paws{width:104px;right:18px;top:-15px}}
+  @media (prefers-reduced-motion: reduce){.fred-paws{transition:none}}

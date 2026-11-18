@@ -104,29 +104,36 @@ window.showPriceRow = (i) => {
   window.showPriceRow = (i) => { location.href = `individuals.html?row=${i}#price`; };
 }
 
-if (document.getElementById('pilot')) {
-// ---------- pilot form: also preview only. Postel: team size can be "12", "about 20" or "10-15"
-document.getElementById('pilot').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const v = document.getElementById('pemail').value.trim().replace(/^mailto:/i, '').replace(/^<|>$/g, '').trim();
-  const size = (document.getElementById('psize').value.match(/\d+/) || [''])[0];
-  document.getElementById('pnote').textContent = /\S+@\S+\.\S+/.test(v)
-    ? `Preview only: nothing was sent${size ? ` (team of ${size})` : ''}. Pilot sign-ups open when the Nod server does.`
-    : 'That doesn’t look like an email address.';
-});
-
-}
-if (document.getElementById('signup')) {
-// ---------- signup: no list service is connected yet, so say so instead of pretending
-document.getElementById('signup').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const v = document.getElementById('email').value.trim().replace(/^mailto:/i, '').replace(/^<|>$/g, '').trim();
-  document.getElementById('note').textContent = /\S+@\S+\.\S+/.test(v)
-    ? 'Preview only: the list isn’t connected yet, so nothing was sent.'
-    : 'That doesn’t look like an email address.';
-});
-
-}
+// ---------- forms: send to Formspree with fetch, so people stay on the page and see a real answer
+(() => {
+  const cleanEmail = (v) => v.trim().replace(/^mailto:/i, '').replace(/^<|>$/g, '').trim();
+  const hook = (formId, emailId, noteId, sentMsg, before) => {
+    const form = document.getElementById(formId);
+    if (!form) return;
+    const note = document.getElementById(noteId), btn = form.querySelector('button[type="submit"]'), email = document.getElementById(emailId);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      email.value = cleanEmail(email.value);
+      if (!/^\S+@\S+\.\S+$/.test(email.value)) { note.textContent = 'That doesn’t look like an email address.'; email.setAttribute('aria-invalid', 'true'); email.focus(); return; }
+      email.removeAttribute('aria-invalid');
+      if (before) before(form);
+      btn.disabled = true; note.textContent = 'Sending…';
+      try {
+        const res = await fetch(form.action, { method: 'POST', body: new FormData(form), headers: { Accept: 'application/json' } });
+        if (res.ok) { form.reset(); note.textContent = sentMsg; return; }
+        const data = await res.json().catch(() => ({}));
+        note.textContent = (data.errors && data.errors.map((x) => x.message).join(' ')) || 'That didn’t go through. Try again in a minute.';
+      } catch (err) {
+        note.textContent = 'Couldn’t reach the form service. Check your connection and try again.';
+      } finally { btn.disabled = false; }
+    });
+  };
+  hook('signup', 'email', 'note', 'You’re on the list. You’ll get an email when pre-orders open.');
+  // Postel: team size can be "12", "about 20" or "10-15". Keep what they typed, it all goes through
+  hook('pilot', 'pemail', 'pnote', 'Got it. I’ll email you about the pilot.', (form) => {
+    const sz = form.querySelector('#psize'); sz.value = sz.value.trim();
+  });
+})();
 
 // ---------- sections ease in once
 (() => {
