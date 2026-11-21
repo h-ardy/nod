@@ -40,11 +40,13 @@ OPEN_W, OPEN_H = CAP_W + 2 * CAP_CLR, CAP_H + 2 * CAP_CLR
 WELL_WALL = 1.2
 PLATE_T = 1.2                        # Choc plate thickness
 SW_CUT = 13.8 + 0.1                  # Choc plate cut-out + print allowance
+SACRIFICIAL_T = float(os.environ.get("NOD_SAC", "0.2"))                  # one 0.2 mm layer bridged over the switch hole (cut it out after printing)
 STEM_TOP_ABOVE_PLATE = 5.8           # PG1350 drawing
 CAP_PROUD = 0.3                      # cap top sits this far above the front face at rest
 CAP_TOP_T = 1.4
 CAP_SKIRT, CAP_SKIRT_DEPTH = 1.2, 1.5
 LEG_D, LEG_PITCH, LEG_LEN = 3.0, 5.7, 3.0
+FDM_LEGS = (1.20, 1.28, 1.35)        # the drawing's leg sizes, which fit the switch when printed in PLA
 TRAVEL = 3.0
 cap_under_z = CAP_PROUD - CAP_TOP_T                     # -1.1
 PLATE_TOP_Z = cap_under_z - STEM_TOP_ABOVE_PLATE        # -6.9
@@ -65,7 +67,7 @@ xiao_bot_z = -SHELL_D + XIAO_STANDOFF                   # -21.8
 USB_W, USB_T = 8.94, 3.26
 usb_cz = xiao_bot_z + XIAO_PCB + USB_T / 2              # about -19.0
 USB_OPEN = (9.6, 4.4)
-USB_RECESS = (12.8, 7.2, 0.8)
+USB_RECESS = (12.8, 7.2, 1.2)            # pocket for the cable plug, so the plug reaches the board
 
 # ---------------------------------------------------------------- side connectors (Adafruit 5358, 21 x 7 x 7) and magnets (K&J D41-N52)
 CONN_L, CONN_T, CONN_IN, CONN_CLR = 21.0, 7.0, 7.0, 0.3
@@ -128,6 +130,12 @@ def make_shell():
     s = s.cut(rrect_z(OPEN_W, OPEN_H, CAP_R + CAP_CLR, 0, KEY_CY, PLATE_TOP_Z, 1))
     s = s.cut(box(-SW_CUT / 2, SW_CUT / 2, KEY_CY - SW_CUT / 2, KEY_CY + SW_CUT / 2,
                   PLATE_BOT_Z - 1, PLATE_TOP_Z + 0.01))
+    if SACRIFICIAL_T > 0:
+        # One thin layer across the switch hole, on the plate's front side. Printed face down, the plate
+        # ring would otherwise start in mid air and sag into strings. This layer prints as one bridge
+        # between the well walls, the ring stacks on top of it, and you cut it out with a hobby knife.
+        s = s.union(box(-SW_CUT / 2 - 0.01, SW_CUT / 2 + 0.01, KEY_CY - SW_CUT / 2 - 0.01, KEY_CY + SW_CUT / 2 + 0.01,
+                        PLATE_TOP_Z - SACRIFICIAL_T, PLATE_TOP_Z))
     wy = MOD_CY + WIN_DY
     s = s.cut(rrect_z(WIN_W, WIN_H, 1.0, 0, wy, -FRONT - 1, 1))
     s = s.cut(rrect_z(WIN_W + 2 * BEZEL, WIN_H + 2 * BEZEL, 1.4, 0, wy, -BEZEL, 1))
@@ -139,7 +147,8 @@ def make_shell():
                CONN_CY - (CONN_L + CONN_CLR) / 2, CONN_CY + (CONN_L + CONN_CLR) / 2,
                -SHELL_D - 1, -SHELL_D + CONN_T + CONN_CLR)
     s = s.cut(mirror_x(slot))
-    usb = (cq.Workplane("XZ").workplane(offset=-WALL_END - 1)
+    # XZ workplane normal is -Y: start 1 mm outside the bottom wall (y = -1) and cut through it toward +Y
+    usb = (cq.Workplane("XZ").workplane(offset=1)
            .center(0, usb_cz).rect(*USB_OPEN).extrude(-(WALL_END + 2))
            .edges("|Y").fillet(1.6))
     s = s.cut(usb)
@@ -173,7 +182,7 @@ def make_lid():
     return lid
 
 
-def make_keycap(leg_t=1.28, pressed=False):
+def make_keycap(leg_t=1.28, pressed=False, leg_d=None, tip=0.0, dish=True):
     """Keycap in its installed position (at rest, or pressed by TRAVEL)."""
     top = CAP_PROUD
     under = top - CAP_TOP_T
@@ -185,13 +194,19 @@ def make_keycap(leg_t=1.28, pressed=False):
     cap = cap.union(skirt)
     # shallow finger dish, 0.35 mm deep
     dish_r = 60.0
-    dish = (cq.Workplane("YZ").workplane(offset=-W).center(KEY_CY, top + dish_r - 0.35)
+    dish_cut = (cq.Workplane("YZ").workplane(offset=-W).center(KEY_CY, top + dish_r - 0.35)
             .circle(dish_r).extrude(2 * W))
-    cap = cap.cut(dish)
+    if dish:
+        # Face down on a filament printer the dish would leave the middle of the face in mid air, so
+        # the FDM caps skip it and stay flat on the bed.
+        cap = cap.cut(dish_cut)
     for sx in (-1, 1):
         x = sx * LEG_PITCH / 2
-        cap = cap.union(box(x - leg_t / 2, x + leg_t / 2, KEY_CY - LEG_D / 2, KEY_CY + LEG_D / 2,
-                            under - LEG_LEN, under + 0.01))
+        ld = leg_d or LEG_D
+        leg = box(x - leg_t / 2, x + leg_t / 2, KEY_CY - ld / 2, KEY_CY + ld / 2, under - LEG_LEN, under + 0.01)
+        if tip > 0:
+            leg = leg.faces("<Z").edges("|Y").chamfer(min(tip, leg_t / 2 - 0.05))
+        cap = cap.union(leg)
     if pressed:
         cap = cap.translate((0, 0, -TRAVEL))
     return cap
@@ -221,11 +236,17 @@ if __name__ == "__main__":
     shell_print = shell.rotate((0, 0, 0), (0, 1, 0), 180)
     print("shell watertight:", export_stl(shell_print, os.path.join(OUT, "nod_shell.stl")))
     print("lid watertight:", export_stl(lid.translate((0, 0, D)), os.path.join(OUT, "nod_lid.stl")))
-    for t in (1.20, 1.28, 1.35):
-        cap = make_keycap(t)
-        # keycap laid face-down at the origin
+    # Filament (FDM): flat top, so the whole face sits on the bed when printed face down.
+    # Printed in PLA, all three of these leg sizes fit the switch.
+    for t in FDM_LEGS:
+        cap = make_keycap(t, dish=False)
         flat = cap.translate((0, -KEY_CY, -CAP_PROUD)).rotate((0, 0, 0), (1, 0, 0), 180)
-        print(f"keycap {t} watertight:", export_stl(flat, os.path.join(OUT, f"nod_keycap_leg{t:.2f}.stl"), 0.01))
+        print(f"keycap fdm {t} watertight:", export_stl(flat, os.path.join(OUT, f"nod_keycap_fdm_leg{t:.2f}.stl"), 0.01))
+    # Resin prints true to size: the drawing's own leg sizes
+    for t in (1.20, 1.28):
+        cap = make_keycap(t)
+        flat = cap.translate((0, -KEY_CY, -CAP_PROUD)).rotate((0, 0, 0), (1, 0, 0), 180)
+        print(f"keycap resin {t} watertight:", export_stl(flat, os.path.join(OUT, f"nod_keycap_resin_leg{t:.2f}.stl"), 0.01))
     asm = (cq.Assembly(name="nod_module")
            .add(shell, name="shell", color=cq.Color(0.12, 0.12, 0.13))
            .add(lid, name="lid", color=cq.Color(0.2, 0.2, 0.22))

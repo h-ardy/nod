@@ -1,4 +1,5 @@
-// Nod key firmware v0.2 (all code lives here; nod_key.ino is the Arduino entry file)
+// Nod key firmware v0.2.1 (all code lives here; nod_key.ino is the Arduino entry file)
+// 0.2.1: screen mirror over USB serial (docs/mirror.html), so the key can be tested before the screen is wired
 //
 // Board:  Seeed Studio XIAO nRF52840, Arduino package "Seeed nRF52 Boards" (the non-mbed one,
 //         which includes the Bluefruit BLE library)
@@ -40,6 +41,9 @@
 #ifndef USE_KEY_LED
 #define USE_KEY_LED 1          // NeoPixel under the keycap
 #endif
+#ifndef NOD_MIRROR
+#define NOD_MIRROR 1           // copy the screen to a computer over USB (see docs/mirror.html), only while a page has the port open
+#endif
 #ifndef NOD_SECURE
 #define NOD_SECURE 1           // require LE Secure Connections bonding (passkey shown on screen)
 #endif
@@ -47,7 +51,7 @@
 #include <Adafruit_NeoPixel.h>
 #endif
 
-#define FW_VERSION "0.2.0"
+#define FW_VERSION "0.2.1"
 
 // ---------------------------------------------------------------- pins
 const uint8_t PIN_KEY = 0, TFT_CS = 1, TFT_DC = 2, TFT_RST = 3, TFT_BL = 6, PIN_KEYLED = 7;
@@ -644,6 +648,62 @@ void drawHeader() {
 
 }
 
+#if NOD_MIRROR
+// Screen mirror over USB serial, for testing without the screen and for screenshots.
+// Frame: "NODF", width u16, height u16, then runs of (count u16, RGB565 colour u16), little endian,
+// ending with a run of count 0. The UI is mostly flat colour, so a frame is usually a few KB.
+// Sent at most 8 times a second, only while a program has the port open, and dropped (never waited
+// on) if the computer isn't reading, so the key never stalls because of it.
+static uint8_t mirBuf[64];
+static size_t mirLen = 0;
+static bool mirOk = true;
+
+static void mirFlush() {
+  if (!mirOk || mirLen == 0) { mirLen = 0; return; }
+  uint32_t t0 = millis();
+  while (Serial.availableForWrite() < (int)mirLen) {
+    if (millis() - t0 > 15 || !Serial) { mirOk = false; mirLen = 0; return; }   // reader stalled: drop the frame
+    yield();
+  }
+  Serial.write(mirBuf, mirLen);
+  mirLen = 0;
+}
+static void mirPut16(uint16_t v) {
+  if (mirLen + 2 > sizeof(mirBuf)) mirFlush();
+  mirBuf[mirLen++] = v & 0xFF;
+  mirBuf[mirLen++] = v >> 8;
+}
+
+void mirrorFrame() {
+  static uint32_t last = 0;
+  uint32_t now = millis();
+  if (!frame || !Serial || now - last < 125) return;
+  last = now;
+  mirOk = true; mirLen = 0;
+  const uint16_t *px = frame->getBuffer();
+  const uint32_t n = (uint32_t)SW * SH;
+  mirBuf[0] = 'N'; mirBuf[1] = 'O'; mirBuf[2] = 'D'; mirBuf[3] = 'F'; mirLen = 4;
+  mirPut16(SW); mirPut16(SH);
+  uint32_t i = 0;
+  while (i < n && mirOk) {
+    uint16_t c = px[i];
+    uint32_t run = 1;
+    while (i + run < n && px[i + run] == c && run < 0xFFFF) run++;
+    mirPut16((uint16_t)run); mirPut16(c);
+    i += run;
+  }
+  mirPut16(0); mirPut16(0);
+  mirFlush();
+}
+#else
+inline void mirrorFrame() {}
+#endif
+
+void pushFrame() {
+  tft.drawRGBBitmap(0, 0, frame->getBuffer(), SW, SH);
+  mirrorFrame();
+}
+
 void render() {
   if (!frame) return;
   uint32_t now = millis();
@@ -656,7 +716,7 @@ void render() {
     printCentered("PAIR CODE", 110, 2, 0xFFFF);
     printCentered(passkey, 140, 3, C_CLAUDE);
     drawHeader();
-    tft.drawRGBBitmap(0, 0, frame->getBuffer(), SW, SH);
+    pushFrame();
     return;
   }
   if (connCount() == 0) printCentered("WAITING FOR COMPUTER", 150, 1, C_DIM);
@@ -686,7 +746,7 @@ void render() {
     printCentered("ALL CLEAR", 150, 1, C_DIM);
   }
   drawHeader();
-  tft.drawRGBBitmap(0, 0, frame->getBuffer(), SW, SH);
+  pushFrame();
 }
 
 void animate() {
@@ -788,6 +848,9 @@ void setup() {
   digitalWrite(PIN_CHARGING_CURRENT, LOW);           // fine for any 250 mAh+ cell
 #endif
 
+#if NOD_MIRROR
+  Serial.begin(115200);                               // USB serial for the screen mirror; doesn't wait for a computer
+#endif
   tft.init(SW, SH);
   tft.setSPISpeed(32000000);
   tft.setRotation(0);

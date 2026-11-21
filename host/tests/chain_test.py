@@ -94,7 +94,7 @@ time.sleep(2.0)
 st = json.loads(nod("status").stdout)
 check("daemon connects to both keys", all(v["connected"] for v in st["lanes"].values()), str(st))
 check("each key learned its lane number", json.loads(ctl[1]("stat"))["lane"] == 1 and json.loads(ctl[0]("stat"))["lane"] == 2)
-check("daemon logs the keys' hello", any("firmware 0.2.0" in l for l in log), "".join(log))
+check("daemon logs the keys' hello", any("firmware 0.2.1" in l for l in log), "".join(log))
 
 h = nod("hook", "claude", bg=True); h.stdin.write(perm("npm run test")); h.stdin.close()
 t = ctl[1].ready()

@@ -68,7 +68,22 @@ for pn, c in (("rest", cap_rest), ("pressed", cap_down)):
 print("== shell x lid overlap:", round(vol(shell, lid), 4))
 bb = shell.union(lid).val().BoundingBox()
 print(f"== assembled envelope: {bb.xlen:.2f} x {bb.ylen:.2f} x {bb.zlen:.2f} mm")
-for f in ["nod_shell.stl", "nod_lid.stl", "nod_keycap_leg1.28.stl"]:
+for f in ["nod_shell.stl", "nod_lid.stl", "nod_keycap_fdm_leg1.28.stl"]:
     m = trimesh.load(f"{f}")
     print(f"== {f}: watertight={m.is_watertight} volume={m.volume:.0f} mm^3 extents={[round(e,2) for e in m.extents]}")
+print("FAILS", fails)
+
+# ---- openings that must go all the way through (a clash check can't see a missing hole)
+_v = shell.val()
+_open = {
+    "usb-c hole through bottom wall": [cq.Vector(0, y, n.usb_cz) for y in (0.3, 1.0, 1.8)],
+    "screen window": [cq.Vector(0, n.MOD_CY, -1.0)],
+    "key opening": [cq.Vector(0, n.KEY_CY, -1.0)],
+}
+print("== openings")
+for name, pts in _open.items():
+    ok = all(not _v.isInside(p) for p in pts)
+    if not ok:
+        fails += 1
+    print(f"  {'ok  ' if ok else 'SHUT'} {name}")
 print("FAILS", fails)

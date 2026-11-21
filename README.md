@@ -35,13 +35,14 @@ People have built approval buttons before, so here is where Nod sits:
 
 Rough total for one module: about $40 in parts, plus filament. Switches, magnets and LEDs come in packs, so each extra module is cheaper.
 
-## 2. Print (files in `cad/`)
+## 2. Print (ready-to-print files in `cad/print/`)
 
 | File | Material | Orientation | Notes |
 |---|---|---|---|
-| `nod_shell.stl` | PETG or PLA, 0.2 mm layers, 3 walls, 20% infill | Already saved in print orientation: front (screen) face flat on the bed, open back facing up. Load it and don't rotate it. | Use a 5 mm brim. Supports: build plate only (they go under the switch plate ring inside the key hole). First layer is one solid 550 mm^2 piece. |
+| `nod_shell.stl` | PETG or PLA, 0.2 mm layers, 3 walls, 20% infill | Already saved in print orientation: front (screen) face flat on the bed, open back facing up. Load it and don't rotate it. | Use a 5 mm brim. No supports needed: one 0.2 mm layer is bridged across the switch hole so the switch plate has something to print on. After printing, cut that thin layer out of the square hole with a hobby knife, running the blade along the hole's edges. |
 | `nod_lid.stl` | same | Flat, inside face up | No supports. |
-| `nod_keycap_leg1.20 / 1.28 / 1.35.stl` | Resin is best. FDM: clear PETG for the glow | Resin: face down. FDM: standing on a long edge so the layer lines run along the legs | Print all three, keep the one that grips the switch snugly. FDM keycap legs printed upright snap easily. |
+| `nod_keycap_fdm_leg1.20 / 1.28 / 1.35.stl` | PLA or PETG | Face down (already saved that way), no supports | Flat top (no finger dish) so the whole face sits on the bed. Printed in PLA, all three leg sizes fit the switch. Use at least 5 top layers so the inside of the cap prints solid. |
+| `nod_keycap_resin_leg1.20 / 1.28.stl` | Resin | Face down | Resin prints true to size, so these use the drawing's own leg sizes. |
 
 All parts check out with no clashes against the catalog sizes of the screen, switch, battery, XIAO and connectors (`cad/check_fit.py`). Two sizes were not published and are assumptions, so print the shell once and test fit before printing a stack:
 - The Waveshare module's thickness and where its glass sits on the board. The window (`WIN_DY` in `nod_case.py`) assumes the glass is centred.
@@ -80,6 +81,8 @@ The side connectors are not wired in v1. They line the modules up and are there 
 Arduino IDE: add the Seeed board package, pick **Seeed nRF52 Boards > Seeed XIAO nRF52840** (not the "mbed" one). Install the libraries Adafruit GFX, Adafruit ST7735 and ST7789, ArduinoJson (v7) and Adafruit NeoPixel. Open `firmware/nod_key/` and upload. The code lives in `nod_key.cpp`.
 
 A prebuilt package is included: `adafruit-nrfutil dfu serial -pkg firmware/nod_key_xiao_nrf52840_dfu.zip -p <port> -b 115200 --singlebank` (built with GCC 13 rather than the board package's own compiler; the IDE route above is the safer first flash).
+
+Screen mirror (firmware 0.2.1 and newer): plug the key into your computer by USB, open `docs/mirror.html` in Chrome or Edge (or the Screen mirror page on the Nod site) and click Connect. It shows the key's screen live, including the pairing code, so you can test and pair a key before its screen is wired. The key only sends frames while that page has the port open. Turn it off with `#define NOD_MIRROR 0`.
 
 Charging: plug USB-C into the XIAO. The firmware sets its charger to 100 mA (the board default is 50 mA), so a 400 mAh battery fills in about 4 to 5 hours. The case fits batteries up to 20 x 36 x 7.5 mm.
 

@@ -585,7 +585,7 @@ if (document.getElementById('intro')) {
 // ---------- a short gradient trail on white text, wherever the mouse goes
 (() => {
   if (!matchMedia('(hover: hover) and (pointer: fine)').matches || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const SEL = '.logo, .intro-line .t, h2, .page-head h1, .forlabel, .forstrip b, .way h2, .rows .n, .honest h3, .gestures h3';
+  const SEL = '.logo, .foot-mark, .intro-line .t, h2, .page-head h1, .forstrip b, .way h2, .rows .n, .honest h3, .gestures h3';
   const LIFE = 650, COLORS = ['229,181,58', '246,208,106', '143,176,224', '217,119,87'];
   const live = new Map();                                   // element -> { pts, base }
   let raf = 0, hue = 0;

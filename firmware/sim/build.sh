@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 mkdir -p lib
 [ -d lib/Adafruit-GFX-Library ] || git clone -q --depth 1 https://github.com/adafruit/Adafruit-GFX-Library lib/Adafruit-GFX-Library
 [ -d lib/ArduinoJson ] || git clone -q --depth 1 https://github.com/bblanchon/ArduinoJson lib/ArduinoJson
-FLAGS="-std=c++17 -O1 -Wall -Wno-unused-function -DARDUINO=100 \
+FLAGS="-std=c++17 -O1 -Wall -Wno-unused-function -DARDUINO=100 -DNOD_MIRROR=0 \
  -DARDUINOJSON_ENABLE_ARDUINO_STRING=0 -DARDUINOJSON_ENABLE_ARDUINO_STREAM=0 \
  -DARDUINOJSON_ENABLE_ARDUINO_PRINT=0 -DARDUINOJSON_ENABLE_PROGMEM=0 \
  -Imock -Ilib/Adafruit-GFX-Library/src -Ilib/ArduinoJson/src"

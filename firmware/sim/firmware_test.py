@@ -130,7 +130,7 @@ ctl.snap("01_waiting")
 pc = Central()
 pc.send({"t": "lane", "n": 2})
 hello = pc.expect(lambda m: m.get("t") == "hello")
-check("daemon link: key says hello with firmware version", hello and hello["fw"] == "0.2.0", str(hello))
+check("daemon link: key says hello with firmware version", hello and hello["fw"] == "0.2.1", str(hello))
 check("lane number set", ctl.stat()["lane"] == 2)
 ctl.snap("02_all_clear")
 
