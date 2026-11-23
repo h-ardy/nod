@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src ws://127.0.0.1:*; style-src 'self'; font-src 'self'; img-src 'self' data:; script-src 'self'">
+<title>Nod Dot</title>
+<link rel="stylesheet" href="dot.css">
+</head>
+<body class="top-right offline">
+  <div class="dot" id="dot" aria-hidden="true"><span class="core"></span><span class="ring"></span></div>
+  <span class="count" id="count" aria-hidden="true"></span>
+
+  <section class="panel" id="panel" aria-live="polite" aria-label="Request waiting for your Nod key" hidden>
+    <header class="head">
+      <div class="src"><i id="swatch"></i><span id="label">CLAUDE CODE</span><span class="lane" id="lane"></span></div>
+      <div class="code" title="The same code is on your key">
+        <b id="code">K7M</b>
+        <small>Same code on your key</small>
+      </div>
+    </header>
+
+    <p class="risk" id="risk" hidden></p>
+
+    <div class="what">
+      <h1 id="l1">Bash</h1>
+      <p id="l2">rm -rf build/</p>
+    </div>
+
+    <div class="why" id="whyBox" hidden>
+      <span>Claude says</span>
+      <p id="why"></p>
+    </div>
+
+    <pre class="detail" id="detail" tabindex="0" aria-label="Full request"></pre>
+
+    <footer class="foot">
+      <div class="how">
+        <span class="key" aria-hidden="true"></span>
+        <p><b>Tap your key</b> to approve. <b>Double tap</b> to reject.</p>
+      </div>
+      <div class="right">
+        <span class="more" id="more"></span>
+        <button type="button" id="close">Close</button>
+      </div>
+    </footer>
+
+    <div class="result" id="result" hidden><b id="resultText">Approved</b></div>
+  </section>
+
+  <script src="dot.js"></script>
+</body>
+</html>

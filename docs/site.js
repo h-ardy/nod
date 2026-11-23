@@ -645,3 +645,50 @@ if (document.getElementById('intro')) {
   addEventListener('pointermove', (e) => { px = e.clientX; py = e.clientY; if (!raf) raf = requestAnimationFrame(tick); }, { passive: true });
   addEventListener('scroll', () => { if (!raf && px >= 0) raf = requestAnimationFrame(tick); }, { passive: true });
 })();
+
+// ---------- "Nod for" strip: drifts left on its own, drag it with the mouse or a finger, and it carries on with a little momentum
+(() => {
+  const strip = document.querySelector('.forstrip'), track = strip && strip.querySelector('.track');
+  if (!track) return;
+  track.style.animation = 'none';
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const BASE = calm ? 0 : -60;                 // px per second
+  let half = track.scrollWidth / 2, x = 0, vel = BASE, target = BASE, drag = null, moved = 0, last = performance.now();
+  addEventListener('resize', () => { half = track.scrollWidth / 2; });
+  const wrap = () => { if (half > 0) { x = x % half; if (x > 0) x -= half; } };
+  const frame = (now) => {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (!drag) { vel += (target - vel) * Math.min(1, dt * 2.2); x += vel * dt; }
+    wrap();
+    track.style.transform = `translate3d(${x.toFixed(2)}px,0,0)`;
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+  strip.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') target = 0; });
+  strip.addEventListener('pointerleave', () => { if (!drag) target = BASE; });
+  strip.addEventListener('focusin', () => { target = 0; });
+  strip.addEventListener('focusout', () => { target = BASE; });
+  strip.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    drag = { id: e.pointerId, px: e.clientX, t: performance.now() }; moved = 0; vel = 0;
+    strip.classList.add('dragging');
+  });
+  strip.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const now = performance.now(), dx = e.clientX - drag.px, dt = Math.max(1, now - drag.t) / 1000;
+    if (!strip.hasPointerCapture(e.pointerId) && Math.abs(moved + dx) > 4) strip.setPointerCapture(e.pointerId);
+    x += dx; moved += Math.abs(dx);
+    vel = vel * 0.6 + (dx / dt) * 0.4;
+    drag.px = e.clientX; drag.t = now;
+  });
+  const end = (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (performance.now() - drag.t > 90) vel = 0;           // held still before letting go: no fling
+    drag = null; strip.classList.remove('dragging');
+    target = e.pointerType === 'mouse' && strip.matches(':hover') ? 0 : BASE;
+  };
+  strip.addEventListener('pointerup', end);
+  strip.addEventListener('pointercancel', end);
+  // a drag isn't a click: don't follow the link you happened to grab
+  strip.addEventListener('click', (e) => { if (moved > 6) { e.preventDefault(); e.stopPropagation(); } }, true);
+})();

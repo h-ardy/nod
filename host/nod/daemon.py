@@ -2,6 +2,8 @@
 
 Hooks, git and the chat bridge talk to it over HTTP on 127.0.0.1 (token required).
 It queues requests, puts each one on a lane, and resolves it when that key answers.
+The Nod Dot app listens on /v1/events (WebSocket) and shows a request in full when the key is held.
+It can open and close its panel, but it can never answer a request: only a key press does that.
 
 Wire protocol to a key: newline-delimited JSON over the Nordic UART Service.
   host -> key  {"t":"add","id","src","c","l1","l2","l3","risk"}   new approval tile
@@ -10,9 +12,13 @@ Wire protocol to a key: newline-delimited JSON over the Nordic UART Service.
                {"t":"lane","n"}                                     lane number to show
                {"t":"pair"}                                         show "PRESS ME"
                {"t":"more","n"}                                     how many more are parked here
+               {"t":"open","id","code"}                             the Nod Dot panel is showing this request
+               {"t":"shut","id"}                                    the panel closed without an answer
+               {"t":"nolook","id"}                                  no Nod Dot app is running to show it
   key -> host  {"t":"ans","id","d":"allow"|"deny"}                  decision
                {"t":"ack","id"}                                     note cleared
                {"t":"btn"}                                          press with nothing showing
+               {"t":"look","id"}                                    held: show me this request in full
                {"t":"hello","fw","bat"}                             on connect
 """
 import asyncio
@@ -27,11 +33,15 @@ NUS_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
 NUS_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"   # host writes here
 NUS_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"   # key notifies here
 CHUNK = 20                                        # safe for the default 23-byte ATT MTU
+CODE_ALPHABET = "ACDEFHJKMNPRTVWXY347"           # no 0/O, 1/I/L, 2/Z, 5/S, 8/B: easy to compare at a glance
 
 
 class Request:
-    def __init__(self, kind, source, l1, l2="", l3="", risky=False, ttl=540):
+    def __init__(self, kind, source, l1, l2="", l3="", risky=False, ttl=540, detail="", why=""):
         self.id = secrets.token_hex(4)
+        self.code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(3))   # same code on key and panel
+        self.detail, self.why = detail, why
+        self.opened = False         # the Nod Dot panel is showing it right now
         self.kind, self.source = kind, source
         self.l1, self.l2, self.l3, self.risky = l1, l2, l3, risky
         self.ttl = ttl
@@ -102,14 +112,25 @@ class SimLink(Link):
     async def send(self, obj):
         t = obj.get("t")
         if t in ("add", "note"):
-            self.tiles.append(obj)
+            self.tiles.append(dict(obj, opened=False))
             tag = "RISKY " if obj.get("risk") else ""
-            print(f"[sim lane {self.lane + 1}] {tag}{obj['src']}: {obj['l1']} | {obj.get('l2', '')}")
+            print(f"[sim lane {self.lane + 1}] {tag}{obj['src']}: {obj['l1']} | {obj.get('l2', '')}  code {obj.get('code', '')}")
         elif t == "del":
             self.tiles = [x for x in self.tiles if x["id"] != obj["id"]]
+        elif t in ("open", "shut"):
+            for x in self.tiles:
+                if x["id"] == obj["id"]:
+                    x["opened"] = t == "open"
+        elif t == "nolook":
+            for x in self.tiles:
+                if x["id"] == obj["id"]:
+                    x["nolook"] = True
+            print(f"[sim lane {self.lane + 1}] no Nod Dot app is running: hold again to run")
 
     def press(self, kind):
-        """Same rules as the firmware: tap approves, double-tap denies, risky needs a hold."""
+        """Same rules as the firmware: tap approves, double-tap denies, hold opens the request on screen.
+        A risky request only takes a tap after it has been opened on screen. With no Nod Dot app
+        running, the key says so and a second hold runs it, as before."""
         if not self.tiles:
             self.broker.on_key(self.lane, {"t": "btn"})
             return "nothing on this lane"
@@ -118,12 +139,15 @@ class SimLink(Link):
             self.tiles.pop(0)
             self.broker.on_key(self.lane, {"t": "ack", "id": tile["id"]})
             return "note cleared"
-        if kind == "double":
-            d = "deny"
+        if kind == "hold" and tile.get("nolook"):
+            d = "allow"                           # no screen to show it on: a second hold runs it
         elif kind == "hold":
-            d = "allow"
-        elif tile.get("risk"):
-            return "risky tile: tap ignored, hold to approve"
+            self.broker.on_key(self.lane, {"t": "look", "id": tile["id"]})
+            return "look"
+        elif kind == "double":
+            d = "deny"
+        elif tile.get("risk") and not tile.get("opened"):
+            return "risky tap ignored: hold to look first"
         else:
             d = "allow"
         self.tiles.pop(0)
@@ -139,6 +163,7 @@ class Broker:
         self.requests: dict[str, Request] = {}   # still on a key
         self.all: dict[str, Request] = {}        # every request, so a late poll still gets its answer
         self.pair_order = None
+        self.watchers: set = set()               # Nod Dot apps listening on /v1/events
         self._locks: dict[int, asyncio.Lock] = {}
         if sim:
             for i in range(sim):
@@ -167,7 +192,44 @@ class Broker:
             "src": labels.get(r.source, r.source.upper())[:16],
             "c": colors.get(r.source, colors["*"]),
             "l1": r.l1[:24], "l2": r.l2[:60], "l3": r.l3[:40], "risk": 1 if r.risky else 0,
+            "code": r.code,
         }
+
+    # ---- Nod Dot: live events for the on-screen panel
+    def public(self, r: Request):
+        labels, colors = self.cfg["labels"], self.cfg["colors"]
+        return {"id": r.id, "kind": r.kind, "source": r.source, "label": labels.get(r.source, r.source.upper()),
+                "color": "#" + colors.get(r.source, colors["*"]), "l1": r.l1, "l2": r.l2, "l3": r.l3,
+                "risky": r.risky, "code": r.code, "detail": r.detail, "why": r.why, "lane": r.lane,
+                "created": r.created, "opened": r.opened}
+
+    def emit(self, ev: dict):
+        dead = []
+        for ws in list(self.watchers):
+            try:
+                asyncio.ensure_future(ws.send_json(ev))
+            except Exception:  # noqa: BLE001  a closed socket: drop it
+                dead.append(ws)
+        for ws in dead:
+            self.watchers.discard(ws)
+
+    async def look(self, lane, rid):
+        """The key was held on a request: open it on screen, or tell the key nobody is watching."""
+        r = self.requests.get(rid)
+        if not r:
+            return
+        if not self.watchers:
+            await self.links[lane].send({"t": "nolook", "id": rid})
+            return
+        self.emit({"ev": "look", "req": self.public(r)})
+
+    async def panel(self, rid, is_open: bool):
+        """The Nod Dot app opened or closed its panel. Tell the key, so it can take a plain tap."""
+        r = self.requests.get(rid)
+        if not r or r.lane not in self.links:
+            return
+        r.opened = is_open
+        await self.links[r.lane].send({"t": "open", "id": rid, "code": r.code} if is_open else {"t": "shut", "id": rid})
 
     # The screen fits 3 tiles above the line. The daemon puts at most MAX_ON_KEY on a key at once and
     # parks the rest, showing the next one as soon as a slot frees up. The key shows "+N MORE".
@@ -201,6 +263,7 @@ class Broker:
             return r
         self.requests[r.id] = r
         self.all[r.id] = r
+        self.emit({"ev": "add", "req": self.public(r)})
         await self.refill(r.lane)
         asyncio.get_running_loop().call_later(r.ttl, lambda: asyncio.ensure_future(self.expire(r)))
         return r
@@ -210,7 +273,8 @@ class Broker:
         if not r.done.is_set():
             r.decision = decision
             r.done.set()
-        self.requests.pop(r.id, None)
+        if self.requests.pop(r.id, None):
+            self.emit({"ev": "done", "id": r.id, "decision": decision})
         if r.lane in self.links:
             if r.shown:
                 await self.links[r.lane].send({"t": "del", "id": r.id})
@@ -236,9 +300,13 @@ class Broker:
             if r and not r.done.is_set():
                 r.decision = ("allow" if msg.get("d") == "allow" else "deny") if t == "ans" else "seen"
                 r.done.set()
+            if r:
+                self.emit({"ev": "done", "id": r.id, "decision": r.decision})
             asyncio.ensure_future(self.refill(lane))       # a slot just opened on this key
         elif t == "btn" and self.pair_order is not None and lane not in self.pair_order:
             self.pair_order.append(lane)
+        elif t == "look":
+            asyncio.ensure_future(self.look(lane, msg.get("id")))
         elif t == "hello":
             print(f"[key {lane + 1}] firmware {msg.get('fw')} battery {msg.get('bat')}%")
 
@@ -249,7 +317,8 @@ def make_app(broker: Broker, tok: str):
 
     @web.middleware
     async def auth(request, handler):
-        if request.headers.get("X-Nod-Token") != tok:
+        given = request.headers.get("X-Nod-Token") or (request.query.get("token") if request.path == "/v1/events" else None)
+        if given != tok:
             return web.json_response({"error": "bad token"}, status=401)
         return await handler(request)
 
@@ -264,7 +333,8 @@ def make_app(broker: Broker, tok: str):
     async def ask(request):
         b = await request.json()
         r = Request("ask", b.get("source", "*"), b.get("l1", "?"), b.get("l2", ""), b.get("l3", ""),
-                    bool(b.get("risky")), int(b.get("ttl", broker.cfg["ask_ttl"])))
+                    bool(b.get("risky")), int(b.get("ttl", broker.cfg["ask_ttl"])),
+                    detail=str(b.get("detail", ""))[:20000], why=str(b.get("why", ""))[:600])
         await broker.submit(r)
         wait = float(b.get("wait", r.ttl))
         try:
@@ -315,6 +385,31 @@ def make_app(broker: Broker, tok: str):
             await asyncio.sleep(0.5)
         order, broker.pair_order = broker.pair_order, None
         return web.json_response({"order": order})
+
+    @routes.get("/v1/events")
+    async def events(request):
+        """Nod Dot app: a snapshot, then live events. It may only open and close its panel."""
+        ws = web.WebSocketResponse(heartbeat=20)
+        await ws.prepare(request)
+        broker.watchers.add(ws)
+        await ws.send_json({"ev": "hello", "pending": [broker.public(r) for r in broker.requests.values()
+                                                       if r.kind == "ask"]})
+        try:
+            async for m in ws:
+                if m.type != web.WSMsgType.TEXT:
+                    continue
+                try:
+                    cmd = json.loads(m.data)
+                except json.JSONDecodeError:
+                    continue
+                if cmd.get("cmd") in ("opened", "closed"):
+                    await broker.panel(str(cmd.get("id")), cmd["cmd"] == "opened")
+        finally:
+            broker.watchers.discard(ws)
+            for r in broker.requests.values():          # the panel is gone with the app
+                if r.opened:
+                    await broker.panel(r.id, False)
+        return ws
 
     @routes.post("/v1/sim/press")
     async def sim_press(request):

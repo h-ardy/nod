@@ -28,7 +28,7 @@ def hook_claude():
     name = evt.get("hook_event_name")
     if name == "PermissionRequest":
         s = summarize.claude_permission(evt)
-        res = client.ask("claude-code", s["l1"], s["l2"], s["l3"], s["risky"])
+        res = client.ask("claude-code", s["l1"], s["l2"], s["l3"], s["risky"], detail=s["detail"], why=s["why"])
         d = res.get("decision")
         if d == "allow":
             out = {"behavior": "allow"}
@@ -98,7 +98,16 @@ def git_pre_push(remote, url):
             l2 = f"{n} commit{'s' if n != '1' else ''} +{plus} -{minus}"
             if risky:
                 l2 = "FORCE  " + l2
-        res = client.ask("git", f"{branch} to {remote}", l2, repo, risky)
+        if lsha == ZERO:
+            detail = f"Deletes the branch {branch} on {remote} ({url})."
+        else:
+            rng = [lsha, "--not", "--remotes=" + remote] if rsha == ZERO else [f"{rsha}..{lsha}"]
+            commits = _git("log", "--oneline", "--no-decorate", "-n", "50", *rng)
+            files = _git("diff", "--stat", f"{rsha}..{lsha}") if rsha != ZERO else ""
+            detail = (f"Push {branch} to {remote} ({url})\n"
+                      + ("This rewrites history on the remote (force push).\n" if risky else "")
+                      + "\nCommits:\n" + (commits or "(none found)") + ("\n\nFiles:\n" + files if files else ""))
+        res = client.ask("git", f"{branch} to {remote}", l2, repo, risky, detail=detail)
         d = res.get("decision")
         if d == "deny":
             print(f"nod: push of {branch} denied on the key", file=sys.stderr)
@@ -178,6 +187,7 @@ def main(argv=None):
     a.add_argument("--source", default="*"); a.add_argument("--l1", required=True)
     a.add_argument("--l2", default=""); a.add_argument("--l3", default="")
     a.add_argument("--risky", action="store_true"); a.add_argument("--wait", type=float)
+    a.add_argument("--detail", default="", help="full text for the Nod Dot panel"); a.add_argument("--why", default="")
     n = sub.add_parser("notify"); n.add_argument("--source", default="*"); n.add_argument("--l1", required=True); n.add_argument("--l2", default="")
     sub.add_parser("status")
     pr = sub.add_parser("press"); pr.add_argument("lane", type=int); pr.add_argument("kind", nargs="?", default="tap")
@@ -200,7 +210,8 @@ def main(argv=None):
         from . import mcp_server
         mcp_server.run()
     elif args.cmd == "ask":
-        res = client.ask(args.source, args.l1, args.l2, args.l3, args.risky, wait=args.wait)
+        res = client.ask(args.source, args.l1, args.l2, args.l3, args.risky, wait=args.wait,
+                         detail=args.detail, why=args.why)
         print(res.get("decision"))
         return {"allow": 0, "deny": 1}.get(res.get("decision"), 2)
     elif args.cmd == "notify":

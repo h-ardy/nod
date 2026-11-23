@@ -16,9 +16,14 @@ def _call(method, path, body=None, timeout=10):
         return json.loads(r.read())
 
 
-def ask(source, l1, l2="", l3="", risky=False, wait=None, ttl=None):
-    """Blocks until the key answers. Returns allow | deny | timeout | unavailable | pending."""
+def ask(source, l1, l2="", l3="", risky=False, wait=None, ttl=None, detail="", why=""):
+    """Blocks until the key answers. Returns allow | deny | timeout | unavailable | pending.
+    detail and why are only shown on the Nod Dot panel, never on the key."""
     body = {"source": source, "l1": l1, "l2": l2, "l3": l3, "risky": risky}
+    if detail:
+        body["detail"] = detail
+    if why:
+        body["why"] = why
     if ttl:
         body["ttl"] = ttl
     if wait is not None:

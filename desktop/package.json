@@ -1,0 +1,35 @@
+{
+  "name": "nod-dot",
+  "productName": "Nod Dot",
+  "version": "0.1.0",
+  "description": "A tiny dot in the corner of your screen that opens into a review panel when you hold your Nod key.",
+  "main": "main.js",
+  "author": "Jintong (Hardy) Wang",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.nod.dot",
+    "productName": "Nod Dot",
+    "files": ["main.js", "preload.js", "renderer/**", "assets/**"],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": ["dmg"],
+      "icon": "assets/icon.png",
+      "extendInfo": { "LSUIElement": true }
+    },
+    "win": {
+      "target": ["nsis"],
+      "icon": "assets/icon.png"
+    },
+    "nsis": { "oneClick": true, "perMachine": false }
+  }
+}

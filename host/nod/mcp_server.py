@@ -51,7 +51,8 @@ async def request_approval(action: str, target: str = "", risky: bool = False) -
     text = f"{action} {target}"
     flag = risky or bool(summarize.risk_of(text)) or bool(summarize.CHAT_RISKY.search(action))
     res = await asyncio.to_thread(client.ask, SOURCE, summarize.clip(action, 24),
-                                  summarize.clip(target, 60), "", flag, WAIT)
+                                  summarize.clip(target, 60), "", flag, WAIT,
+                                  detail=f"Action: {action}\nTarget: {target}")
     return _word(res)
 
 

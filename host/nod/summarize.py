@@ -79,4 +79,45 @@ def claude_permission(evt: dict) -> dict:
     else:
         l1, l2 = clip(tool, 20), clip(json.dumps(ti), 60)
     l3 = where if not risky else f"{where}  RISK: {risky}"
-    return {"l1": l1, "l2": l2, "l3": clip(l3, 40), "risky": bool(risky)}
+    return {"l1": l1, "l2": l2, "l3": clip(l3, 40), "risky": bool(risky),
+            "detail": claude_detail(tool, ti, cwd, risky), "why": clip(ti.get("description", ""), 300)}
+
+
+def _lines(text: str, prefix: str, limit: int = 400) -> str:
+    rows = str(text).splitlines() or [""]
+    out = [prefix + r for r in rows[:limit]]
+    if len(rows) > limit:
+        out.append(f"   ... {len(rows) - limit} more lines")
+    return "\n".join(out)
+
+
+def claude_detail(tool: str, ti: dict, cwd: str, risky) -> str:
+    """The whole request, for the Nod Dot panel. Built from the real tool input, never from the
+    model's description. (Claude's description is shown separately and labelled as Claude's.)"""
+    head = [f"Tool: {tool}", f"Folder: {cwd}"]
+    if risky:
+        head.append(f"Flagged: {risky}")
+    if tool == "Bash":
+        body = "$ " + ti.get("command", "")
+    elif tool == "Edit":
+        p = ti.get("file_path", "")
+        body = f"File: {_rel(p, cwd)}\n\n" + _lines(ti.get("old_string", ""), "- ") + "\n" + _lines(ti.get("new_string", ""), "+ ")
+        if ti.get("replace_all"):
+            body += "\n\n(replaces every match in the file)"
+    elif tool == "MultiEdit":
+        p = ti.get("file_path", "")
+        parts = [f"File: {_rel(p, cwd)}"]
+        for i, e in enumerate(ti.get("edits") or [], 1):
+            parts.append(f"\nEdit {i}\n" + _lines(e.get("old_string", ""), "- ") + "\n" + _lines(e.get("new_string", ""), "+ "))
+        body = "\n".join(parts)
+    elif tool == "Write":
+        p = ti.get("file_path", "")
+        content = ti.get("content", "")
+        exists = os.path.exists(p)
+        body = (f"File: {_rel(p, cwd)} ({'replaces the existing file' if exists else 'new file'}, "
+                f"{len(content.splitlines())} lines)\n\n" + _lines(content, "+ "))
+    elif tool == "WebFetch":
+        body = f"URL: {ti.get('url', '')}\nAsks the page: {ti.get('prompt', '')}"
+    else:
+        body = json.dumps(ti, indent=2)[:20000]
+    return "\n".join(head) + "\n\n" + body

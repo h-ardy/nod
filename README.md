@@ -18,7 +18,7 @@ Each key holds two Bluetooth connections at once: the nod daemon and the Claude 
 People have built approval buttons before, so here is where Nod sits:
 - Anthropic's own [claude-desktop-buddy](https://github.com/anthropics/claude-desktop-buddy) publishes the Bluetooth protocol the Claude desktop app uses for maker hardware (developer mode only, not an officially supported feature). Nod's firmware speaks it, so a key works with the desktop app with no daemon at all.
 - [Claude Board](https://pypi.org/project/claude-board/) approves from a phone with hardware planned; [Gavel](https://github.com/etalli/Gavel) uses three buttons that type the answer as a USB keyboard; several M5Stack consoles exist on Hackster; OpenAI's Codex Micro macro pad was reported in July 2026.
-- What Nod adds: a 1 x 1 x 3 in key with its own screen, magnetic stacking where each key is a lane, a queue that falls like piano tiles, per-source colors, git push approvals, hold-to-approve for risky commands, and one key serving the desktop app and the CLI at the same time.
+- What Nod adds: a 1 x 1 x 3 in key with its own screen, magnetic stacking where each key is a lane, a queue that falls like piano tiles, per-source colors, git push approvals, hold-to-look for risky commands (the request opens in full in the Nod Dot app on your screen), and one key serving the desktop app and the CLI at the same time.
 
 ## 1. Parts (one module)
 
@@ -86,12 +86,13 @@ Screen mirror (firmware 0.2.1 and newer): plug the key into your computer by USB
 
 Charging: plug USB-C into the XIAO. The firmware sets its charger to 100 mA (the board default is 50 mA), so a 400 mAh battery fills in about 4 to 5 hours. The case fits batteries up to 20 x 36 x 7.5 mm.
 
-Builds for that board here: 189 KB of flash, 25 KB of static RAM, plus a 110 KB frame buffer allocated at boot. It has not run on a physical board yet. The same source, unchanged, runs in the desktop simulator (section 7), where 42 checks pass.
+Builds for that board here: 189 KB of flash, 25 KB of static RAM, plus a 110 KB frame buffer allocated at boot. It has not run on a physical board yet. The same source, unchanged, runs in the desktop simulator (section 7), where 49 checks pass.
 
 Key behaviour:
 - A tile counts only once it has landed on the dashed line, so a stray press never answers something you haven't read.
 - Tap approves. Double-tap denies.
-- Risky tiles (red outline) ignore taps. Hold for 1.0 s to approve them.
+- Hold about 1 s to look: the Nod Dot app on your computer opens the whole request (section 6). The key and the panel show the same 3-letter code, so you know it's the same request. With the panel open, a tap approves and a double-tap denies.
+- Risky tiles (red outline) ignore taps until you've held to look. If the Nod Dot app isn't running, the key says NO SCREEN and a second hold runs it, so the key still works on its own.
 - Info notes ("Done", "Waiting for you"): tap to clear.
 - The screen fits 3 tiles. Extra requests wait on your computer, not the key, and the key shows "+N MORE" at the top. Each time you answer one, the next slides in. Nothing is dropped, however many sessions are asking.
 - The screen goes dark after 30 s with nothing pending. Bluetooth stays connected.
@@ -147,17 +148,28 @@ Example config (Claude Desktop format, `claude_desktop_config.json`; other apps 
 ```
 Set the nod tools to "always allow" in the app so the key is the only place you answer. Long waits are split into 45 s calls (PENDING then `check_approval`), because chat apps time out long tool calls. A web-only chat (claude.ai in a browser) can't reach a server on your laptop without exposing it to the internet, so v1 doesn't support it.
 
+### Nod Dot (Mac and Windows)
+A tiny dot in a corner of your screen that you mostly won't notice. It turns amber when a request is waiting and red when one is risky. Hold your key and the dot pulses twice and opens into a panel, about a fifth of the screen, with the whole request: the full command or diff, the folder, why it was flagged, and Claude's own one-line reason (labelled as Claude's). Tap the key to approve, double-tap to reject. The panel can't approve anything itself; only the key can. Clicks pass straight through the dot while it's closed.
+
+```
+cd desktop && npm install && npm start     # run it
+npm run dist:mac                            # build a .dmg (on a Mac)
+npm run dist:win                            # build a Windows installer (on Windows)
+```
+Pick the corner and turn on "Open at login" from its menu-bar (Mac) or tray (Windows) icon. Details in `desktop/README.md`.
+
 ### Anything else
 `nod ask --source codex --l1 "Shell" --l2 "pytest -q"` exits 0 on approve, 1 on deny, 2 if unavailable. `nod notify --l1 Done --l2 "export finished"` shows a note. Point any tool that has a pre-action hook at these.
 
 ## 7. Test without hardware
 
-Three test suites, 89 checks, all passing:
+Four test suites, 112 checks, all passing:
 
 ```
-cd firmware/sim && ./build.sh && python3 firmware_test.py   # 38: the real firmware, both protocols, gestures, screenshots in shots/
-cd host && python3 tests/e2e_test.py                        # 22: hooks, git, chat bridge against simulated keys
-cd host && python3 tests/chain_test.py                      # 25: daemon -> firmware simulator over a fake Bluetooth link, incl. 10 requests at once
+cd firmware/sim && ./build.sh && python3 firmware_test.py   # 49: the real firmware, both protocols, gestures, hold to look, screenshots in shots/
+cd host && python3 tests/e2e_test.py                        # 23: hooks, git, chat bridge against simulated keys
+cd host && python3 tests/chain_test.py                      # 26: daemon -> firmware simulator over a fake Bluetooth link, incl. 10 requests at once
+cd host && python3 tests/dot_test.py                        # 14: Nod Dot events, hold to look, matching codes, the panel can't approve
 ```
 
 `firmware/sim` compiles `nod_key.cpp` unchanged for your computer, with stand-ins for the board, radio and screen and the real graphics and JSON libraries. Each TCP client is one Bluetooth connection, sent in 20-byte packets like a real default link, and every screen state is saved as a PNG. `host/tests/fakeble` swaps in for the `bleak` Bluetooth library so the real daemon talks to the simulator.
@@ -166,7 +178,8 @@ What these tests can't cover: the radio itself, pairing on a real OS, the screen
 
 ## 8. Safety rules built in
 - Tile text is built from the real command, path or URL, never from the model's description of it.
-- Risky patterns (rm -rf, sudo, force push, curl piped to a shell, chmod 777, dd, publish, DROP TABLE, terraform destroy, and in chats delete, buy, pay, transfer) need the 1.0 s hold.
+- Risky patterns (rm -rf, sudo, force push, curl piped to a shell, chmod 777, dd, publish, DROP TABLE, terraform destroy, and in chats delete, buy, pay, transfer) can't be tapped through. You hold to open them in full first, or with no screen nearby, hold twice.
+- The Nod Dot panel only shows requests. It has no way to approve one: answers come from the key. The key and the panel show the same code so a swapped request is easy to spot.
 - A timeout or a dead link never approves.
 - The daemon listens only on 127.0.0.1 and wants a random token from `~/.nod/token`, so a web page can't send approvals to it.
 - If a hook process is killed (you answered in the terminal instead), its tile comes off the key.

@@ -1,5 +1,8 @@
 // Nod key firmware v0.2.1 (all code lives here; nod_key.ino is the Arduino entry file)
 // 0.2.1: screen mirror over USB serial (docs/mirror.html), so the key can be tested before the screen is wired
+// 0.3.0: hold to look. Holding a request opens it in full in the Nod Dot app on the computer; a tap then approves.
+//        A risky request only takes a tap after it has been opened there. With no Nod Dot app running, the key
+//        says so and a second hold runs it. The key and the panel show the same 3-letter code.
 //
 // Board:  Seeed Studio XIAO nRF52840, Arduino package "Seeed nRF52 Boards" (the non-mbed one,
 //         which includes the Bluefruit BLE library)
@@ -7,7 +10,8 @@
 //
 // One key can hold two Bluetooth connections at the same time and speaks a protocol on each:
 //   * the Nod daemon on your computer (Claude Code CLI hooks, git, chat bridge):
-//       {"t":"add"|"note"|"del"|"lane"|"pair", ...}  ->  {"t":"ans"|"ack"|"btn"|"hello", ...}
+//       {"t":"add"|"note"|"del"|"lane"|"pair"|"more"|"open"|"shut"|"nolook", ...}
+//       ->  {"t":"ans"|"ack"|"btn"|"look"|"hello", ...}
 //   * the Claude desktop app's Hardware Buddy bridge (Claude Code Desktop and Cowork sessions),
 //     protocol from github.com/anthropics/claude-desktop-buddy REFERENCE.md:
 //       heartbeat {"total","running","waiting","msg","entries","prompt":{"id","tool","hint"}}
@@ -51,7 +55,7 @@
 #include <Adafruit_NeoPixel.h>
 #endif
 
-#define FW_VERSION "0.2.1"
+#define FW_VERSION "0.3.0"
 
 // ---------------------------------------------------------------- pins
 const uint8_t PIN_KEY = 0, TFT_CS = 1, TFT_DC = 2, TFT_RST = 3, TFT_BL = 6, PIN_KEYLED = 7;
@@ -61,6 +65,7 @@ const int16_t SW = 172, SH = 320;
 const int16_t HIT_Y = 288;
 const int16_t TILE_H = 64, TILE_H_READY = 96, TILE_GAP = 6, TILE_X = 6, TILE_W = SW - 12;
 const uint16_t HOLD_MS = 1000, DOUBLE_MS = 320, PRESS_MS = 90, APPR_MS = 780, DENY_MS = 450;
+const uint16_t OPEN_GUARD_MS = 500;   // taps right after the panel opens are ignored, so letting go of the hold never approves
 const uint32_t BACKLIGHT_IDLE_MS = 30000;
 const uint16_t C_BG = 0x0841, C_DIM = 0x8C51, C_LINE = 0x4A69, C_RED = 0xF208, C_CLAUDE = 0xDBAA;
 
@@ -129,6 +134,10 @@ struct Tile {
   uint16_t color;
   uint8_t r, g, b;
   bool risky, note;
+  char code[4];        // matches the code on the Nod Dot panel
+  bool opened;         // the Nod Dot panel is showing this request right now
+  bool nolook;         // held, but no Nod Dot app is running: a second hold runs it
+  uint32_t openedAt;
   TileState state;
   float y;
   float ay;            // where the tile sat when it was approved
@@ -150,7 +159,7 @@ char passkey[7] = {0};
 uint32_t passkeyUntil = 0;
 
 bool keyDown = false, holdUsed = false;
-uint32_t keyDownAt = 0, lastTapAt = 0, pendingTapAt = 0, hintUntil = 0, lastActivity = 0;
+uint32_t keyDownAt = 0, lastTapAt = 0, pendingTapAt = 0, hintUntil = 0, lastActivity = 0, lookSentAt = 0;
 float holdProgress = 0;
 
 // ---------------------------------------------------------------- helpers
@@ -286,8 +295,9 @@ void handleNod(Conn &c, JsonDocument &doc) {
   }
   const char *t = doc["t"] | "";
   if (!strcmp(t, "add") || !strcmp(t, "note")) {
-    addTile(c.hdl, P_NOD, doc["id"] | "", doc["src"] | "", doc["c"] | "E5B53A", doc["l1"] | "",
-            doc["l2"] | "", doc["l3"] | "", (doc["risk"] | 0) != 0, !strcmp(t, "note"));
+    Tile *n = addTile(c.hdl, P_NOD, doc["id"] | "", doc["src"] | "", doc["c"] | "E5B53A", doc["l1"] | "",
+                      doc["l2"] | "", doc["l3"] | "", (doc["risk"] | 0) != 0, !strcmp(t, "note"));
+    if (n) strlcpy(n->code, doc["code"] | "", sizeof(n->code));
   } else if (!strcmp(t, "del")) {
     int i = findTile(c.hdl, doc["id"] | "");
     if (i >= 0) removeAt(i);
@@ -299,7 +309,29 @@ void handleNod(Conn &c, JsonDocument &doc) {
     wake();
   } else if (!strcmp(t, "more")) {
     moreCount = doc["n"] | 0;
+  } else if (!strcmp(t, "open") || !strcmp(t, "shut") || !strcmp(t, "nolook")) {
+    int i = findTile(c.hdl, doc["id"] | "");
+    if (i >= 0) {
+      Tile &x = tiles[i];
+      if (!strcmp(t, "open")) {
+        x.opened = true; x.openedAt = millis();
+        if (doc["code"].is<const char *>()) strlcpy(x.code, doc["code"] | "", sizeof(x.code));
+      } else if (!strcmp(t, "shut")) {
+        x.opened = false;
+      } else {
+        x.nolook = true;
+      }
+      lookSentAt = 0;
+      wake();
+    }
   }
+}
+
+void sendLook(Tile &t) {
+  JsonDocument d;
+  d["t"] = "look"; d["id"] = t.id;
+  sendLine(t.conn, d);
+  lookSentAt = millis();
 }
 
 // ---------------------------------------------------------------- Claude desktop Hardware Buddy protocol
@@ -441,7 +473,10 @@ void onTapConfirmed() {
   int i = lowestLive();
   if (i < 0) return;
   if (tiles[i].note) { sendAnswer(tiles[i], true); removeAt(i); return; }
-  if (tiles[i].risky) { hintUntil = millis() + 900; return; }
+  // a press that started within half a second of the panel opening is ignored: it is the end of the hold
+  if (tiles[i].opened && (int32_t)(keyDownAt - tiles[i].openedAt) < (int32_t)OPEN_GUARD_MS) return;
+  if (tiles[i].risky && !tiles[i].opened && tiles[i].proto == P_NOD) { hintUntil = millis() + 900; return; }
+  if (tiles[i].risky && tiles[i].proto != P_NOD) { hintUntil = millis() + 900; return; }   // desktop app: hold, as before
   finish(i, APPROVED);
 }
 
@@ -483,13 +518,18 @@ void pollKey() {
     holdProgress = 0;
   }
   int i = lowestLive();
-  if (keyDown && !holdUsed && i >= 0 && tiles[i].risky && lowestReady()) {
+  // Holding a request: Nod requests open on screen (or run, on the second hold with no screen);
+  // Claude desktop app requests keep the old rule, hold runs a risky one.
+  bool holdable = i >= 0 && !tiles[i].note && lowestReady() && (tiles[i].proto == P_NOD || tiles[i].risky)
+                  && !tiles[i].opened;
+  if (keyDown && !holdUsed && holdable) {
     holdProgress = min(1.0f, (now - keyDownAt) / (float)HOLD_MS);
     if (holdProgress >= 1.0f) {
       holdUsed = true;
       holdProgress = 0;
       pendingTapAt = 0;
-      finish(i, APPROVED);
+      if (tiles[i].proto != P_NOD || tiles[i].nolook) finish(i, APPROVED);
+      else sendLook(tiles[i]);
     }
   } else if (!keyDown) {
     holdProgress = 0;
@@ -622,9 +662,15 @@ void drawTile(const Tile &t, bool ready, uint32_t now) {
   printClipped(t.l2, x + 8, yy + 40, 1, 24);
   if (ready && hh > 70) {
     printClipped(t.l3, x + 8, yy + 54, 1, 24);
-    if (t.risky) {
+    if (t.opened && t.code[0]) {                     // same code as the panel on the computer
+      frame->fillRoundRect(x + TILE_W - 58, yy + 6, 50, 18, 4, 0xFFFF);
+      frame->setTextColor(0x10A2);
+      printClipped(t.code, x + TILE_W - 51, yy + 8, 2, 3);
+      frame->setTextColor(inkFor(t));
+    }
+    if (holdProgress > 0.2f || (t.risky && !t.opened)) {
       frame->fillRect(x + 8, yy + hh - 12, TILE_W - 16, 5, 0xC618);
-      frame->fillRect(x + 8, yy + hh - 12, (int16_t)((TILE_W - 16) * holdProgress), 5, C_RED);
+      frame->fillRect(x + 8, yy + hh - 12, (int16_t)((TILE_W - 16) * holdProgress), 5, t.risky ? C_RED : 0xFFFF);
     }
   }
 }
@@ -740,8 +786,12 @@ void render() {
     frame->setTextColor(t.risky ? C_RED : t.color);
     frame->setCursor(8, HIT_Y + 10);
     if (t.note) frame->print("TAP TO CLEAR");
-    else if (t.risky) frame->print(now < hintUntil ? "HOLD, DO NOT TAP" : "HOLD 1.0 S TO RUN");
-    else frame->print("TAP OK   2 TAPS NO");
+    else if (t.opened) { frame->print("CODE "); frame->print(t.code); frame->print("  TAP OK  2 NO"); }
+    else if (lookSentAt && now - lookSentAt < 2500) frame->print("OPENING ON SCREEN...");
+    else if (t.nolook) frame->print("NO SCREEN. HOLD TO RUN");
+    else if (t.proto != P_NOD && t.risky) frame->print(now < hintUntil ? "HOLD, DO NOT TAP" : "HOLD 1.0 S TO RUN");
+    else if (t.risky) frame->print(now < hintUntil ? "HOLD TO LOOK FIRST" : "RISKY. HOLD TO LOOK");
+    else frame->print("TAP OK  2 NO  HOLD MORE");
   } else if (tileCount == 0 && connCount() > 0 && !pairing) {
     printCentered("ALL CLEAR", 150, 1, C_DIM);
   }

@@ -388,7 +388,10 @@
   .forstrip{position:relative;border-top:1px solid rgba(143,176,224,.2);border-bottom:1px solid rgba(143,176,224,.2);overflow:hidden;padding:30px 0;
     -webkit-mask-image:linear-gradient(90deg,#000 92%,transparent);mask-image:linear-gradient(90deg,#000 92%,transparent)}
   .forstrip .track{display:flex;width:max-content;animation:strip 48s linear infinite}
-  .forstrip:hover .track,.forstrip:focus-within .track{animation-play-state:paused}
+  .forstrip{cursor:grab;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+  .forstrip.dragging{cursor:grabbing}
+  .forstrip .track{will-change:transform}
+  .forstrip a{-webkit-user-drag:none}
   .forlabel{position:absolute;left:0;top:0;bottom:0;z-index:2;display:flex;align-items:center;padding:0 2.2em 0 6vw;
     font-family:var(--display);font-weight:800;font-size:clamp(30px,4.2vw,58px);letter-spacing:-.035em;color:var(--ink);
     background:linear-gradient(90deg,var(--ground) 72%,rgba(15,16,14,0));pointer-events:none}
@@ -398,7 +401,7 @@
   .forstrip a.hi b{color:var(--amber)}
   .forstrip a:hover{color:var(--ink)} .forstrip a:hover b{color:var(--amber)}
   @keyframes strip{to{transform:translateX(-50%)}}
-  @media (prefers-reduced-motion: reduce){.forstrip .track{animation:none;flex-wrap:wrap;width:auto}}
+  
   #for{padding:72px 0 64px}
 
   /* ---------- try it: two columns, status lives on each button */
@@ -520,9 +523,9 @@
   .forstrip .nf{font-weight:700;color:var(--ink-3)}
   .forstrip a{gap:.28em}
   /* ---------- yellow band with rounded corners, inset from the edges */
-  .cta-band{margin:0 clamp(10px,2.2vw,28px) clamp(48px,7vw,96px);border-radius:clamp(20px,2.6vw,36px);overflow:hidden}
+  .cta-band{margin:0 clamp(10px,2.2vw,28px) clamp(12px,1.6vw,22px);border-radius:clamp(20px,2.6vw,36px);overflow:hidden}
   /* ---------- footer */
-  footer{padding:clamp(64px,8vw,104px) 0 0;font-size:14px;color:var(--ink-3)}
+  footer{padding:clamp(56px,6vw,84px) 0 0;font-size:14px;color:var(--ink-3)}
   footer .wrap.foot-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1.4fr) minmax(0,1fr);gap:clamp(28px,4vw,64px);align-items:end;justify-content:normal}
   .foot-mark{display:inline-block;font-family:var(--display);font-weight:800;font-size:clamp(104px,15vw,224px);line-height:.78;letter-spacing:-.06em;color:var(--ink);text-decoration:none;transition:transform 700ms var(--dibu)}
   .foot-mark:hover{transform:translateY(-6px)}
@@ -540,3 +543,21 @@
   .foot-base span:last-child{max-width:620px}
   @media (max-width:980px){footer .wrap.foot-grid{grid-template-columns:1fr 1fr}.foot-cols{grid-column:1/-1;order:3}.foot-house{width:220px}}
   @media (max-width:600px){footer .wrap.foot-grid{grid-template-columns:1fr}.foot-house{justify-self:end;width:210px;order:4}.foot-cols{grid-template-columns:1fr 1fr}}
+
+  /* ---------- footer as its own block, with a contour mountain behind it */
+  footer{background:#1A1B17;margin:clamp(12px,1.6vw,22px) clamp(10px,2.2vw,28px) 0;border-radius:clamp(20px,2.6vw,36px) clamp(20px,2.6vw,36px) 0 0;border-top:0;
+    box-shadow:inset 0 1px 0 rgba(237,235,228,.14)}
+  .foot-mtn{position:absolute;left:0;right:0;bottom:0;width:100%;height:92%;pointer-events:none;border-radius:inherit}
+  footer > .wrap{position:relative;z-index:1}
+  .fred-ledge,.fred-paws{z-index:3}
+  @media (max-width:700px){.foot-mtn{height:55%}}
+
+  /* ---------- why Nod exists */
+  section.purpose{padding:96px 0 88px}
+  .why-big{font-family:var(--display);font-weight:500;font-size:clamp(26px,2.9vw,40px);line-height:1.25;letter-spacing:-.015em;color:var(--ink-2);max-width:1020px}
+  .why-big b,.why-small b{color:var(--ink);font-weight:700}
+  .why-small{margin-top:28px;font-size:clamp(18px,1.5vw,21px);line-height:1.6;color:var(--ink-2);max-width:720px;padding-left:18px;border-left:2px solid var(--amber)}
+  @media (max-width:700px){section.purpose{padding:72px 0 64px}}
+  /* the fine print sits under the two forms, not beside them */
+  .cta-band{flex-direction:column;justify-content:center;align-items:stretch}
+  .cta-band .formfine{width:100%}
