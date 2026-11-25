@@ -5,7 +5,7 @@
   const $ = (id) => document.getElementById(id);
   const body = document.body;
   const api = window.nodKey;
-  const HOLD_MS = 1000, DOUBLE_MS = 320;          // same as the firmware
+  const HOLD_MS = 500, DOUBLE_MS = 320;          // same as the firmware
   const CMD = 'bash ~/Documents/GitHub/nod/host/demo.sh key';
 
   const SAMPLES = [

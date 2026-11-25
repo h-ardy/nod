@@ -1,6 +1,6 @@
 // Nod key firmware v0.2.1 (all code lives here; nod_key.ino is the Arduino entry file)
 // 0.2.1: screen mirror over USB serial (docs/mirror.html), so the key can be tested before the screen is wired
-// 0.3.1: risky requests take the same controls as the rest: tap approves, double tap denies, hold looks.
+// 0.3.1: hold is half a second (was one). Risky requests take the same controls as the rest: tap approves, double tap denies, hold looks.
 //        They still show red, so you can tell them apart.
 // 0.3.0: hold to look. Holding a request opens it in full in the Nod Dot app on the computer; a tap then approves.
 //        A risky request only takes a tap after it has been opened there. With no Nod Dot app running, the key
@@ -57,7 +57,7 @@
 #include <Adafruit_NeoPixel.h>
 #endif
 
-#define FW_VERSION "0.3.0"
+#define FW_VERSION "0.3.1"
 
 // ---------------------------------------------------------------- pins
 const uint8_t PIN_KEY = 0, TFT_CS = 1, TFT_DC = 2, TFT_RST = 3, TFT_BL = 6, PIN_KEYLED = 7;
@@ -66,8 +66,8 @@ const uint8_t PIN_KEY = 0, TFT_CS = 1, TFT_DC = 2, TFT_RST = 3, TFT_BL = 6, PIN_
 const int16_t SW = 172, SH = 320;
 const int16_t HIT_Y = 288;
 const int16_t TILE_H = 64, TILE_H_READY = 96, TILE_GAP = 6, TILE_X = 6, TILE_W = SW - 12;
-const uint16_t HOLD_MS = 1000, DOUBLE_MS = 320, PRESS_MS = 90, APPR_MS = 780, DENY_MS = 450;
-const uint16_t OPEN_GUARD_MS = 500;   // taps right after the panel opens are ignored, so letting go of the hold never approves
+const uint16_t HOLD_MS = 500, DOUBLE_MS = 320, PRESS_MS = 90, APPR_MS = 780, DENY_MS = 450;
+const uint16_t OPEN_GUARD_MS = 300;   // taps right after the panel opens are ignored, so letting go of the hold never approves
 const uint32_t BACKLIGHT_IDLE_MS = 30000;
 const uint16_t C_BG = 0x0841, C_DIM = 0x8C51, C_LINE = 0x4A69, C_RED = 0xF208, C_CLAUDE = 0xDBAA;
 

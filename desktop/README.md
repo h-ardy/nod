@@ -1,6 +1,6 @@
 # Nod Dot
 
-A tiny dot in a corner of your screen. Most of the time you won't notice it. When an AI tool asks for approval, it turns amber, or red if the request is risky. Hold your Nod key for about a second and the dot pulses twice and opens into a panel with the whole request. Tap the key to approve, double-tap to reject.
+A tiny dot in a corner of your screen. Most of the time you won't notice it. When an AI tool asks for approval, it turns amber, or red if the request is risky. Hold your Nod key for half a second and the dot pulses twice and opens into a panel with the whole request. Tap the key to approve, double-tap to reject.
 
 Runs on macOS and Windows. It talks to the Nod daemon on your own computer (`nod daemon`), on 127.0.0.1 only.
 

@@ -91,7 +91,7 @@ Builds for that board here: 189 KB of flash, 25 KB of static RAM, plus a 110 KB 
 Key behaviour:
 - A tile counts only once it has landed on the dashed line, so a stray press never answers something you haven't read.
 - Tap approves. Double-tap denies.
-- Hold about 1 s to look: the Nod Dot app on your computer opens the whole request (section 6). The key and the panel show the same 3-letter code, so you know it's the same request. With the panel open, a tap approves and a double-tap denies.
+- Hold half a second to look: the Nod Dot app on your computer opens the whole request (section 6). The key and the panel show the same 3-letter code, so you know it's the same request. With the panel open, a tap approves and a double-tap denies.
 - Risky tiles get a red outline and take the same controls as everything else: tap, double-tap, or hold to look. If the Nod Dot app isn't running when you hold, the key says NO SCREEN and a second hold runs it, so the key still works on its own.
 - Info notes ("Done", "Waiting for you"): tap to clear.
 - The screen fits 3 tiles. Extra requests wait on your computer, not the key, and the key shows "+N MORE" at the top. Each time you answer one, the next slides in. Nothing is dropped, however many sessions are asking.
