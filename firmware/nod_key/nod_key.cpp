@@ -1,5 +1,7 @@
 // Nod key firmware v0.2.1 (all code lives here; nod_key.ino is the Arduino entry file)
 // 0.2.1: screen mirror over USB serial (docs/mirror.html), so the key can be tested before the screen is wired
+// 0.3.1: risky requests take the same controls as the rest: tap approves, double tap denies, hold looks.
+//        They still show red, so you can tell them apart.
 // 0.3.0: hold to look. Holding a request opens it in full in the Nod Dot app on the computer; a tap then approves.
 //        A risky request only takes a tap after it has been opened there. With no Nod Dot app running, the key
 //        says so and a second hold runs it. The key and the panel show the same 3-letter code.
@@ -475,8 +477,6 @@ void onTapConfirmed() {
   if (tiles[i].note) { sendAnswer(tiles[i], true); removeAt(i); return; }
   // a press that started within half a second of the panel opening is ignored: it is the end of the hold
   if (tiles[i].opened && (int32_t)(keyDownAt - tiles[i].openedAt) < (int32_t)OPEN_GUARD_MS) return;
-  if (tiles[i].risky && !tiles[i].opened && tiles[i].proto == P_NOD) { hintUntil = millis() + 900; return; }
-  if (tiles[i].risky && tiles[i].proto != P_NOD) { hintUntil = millis() + 900; return; }   // desktop app: hold, as before
   finish(i, APPROVED);
 }
 
@@ -668,7 +668,7 @@ void drawTile(const Tile &t, bool ready, uint32_t now) {
       printClipped(t.code, x + TILE_W - 51, yy + 8, 2, 3);
       frame->setTextColor(inkFor(t));
     }
-    if (holdProgress > 0.2f || (t.risky && !t.opened)) {
+    if (holdProgress > 0.2f) {
       frame->fillRect(x + 8, yy + hh - 12, TILE_W - 16, 5, 0xC618);
       frame->fillRect(x + 8, yy + hh - 12, (int16_t)((TILE_W - 16) * holdProgress), 5, t.risky ? C_RED : 0xFFFF);
     }
@@ -789,8 +789,7 @@ void render() {
     else if (t.opened) { frame->print("CODE "); frame->print(t.code); frame->print("  TAP OK  2 NO"); }
     else if (lookSentAt && now - lookSentAt < 2500) frame->print("OPENING ON SCREEN...");
     else if (t.nolook) frame->print("NO SCREEN. HOLD TO RUN");
-    else if (t.proto != P_NOD && t.risky) frame->print(now < hintUntil ? "HOLD, DO NOT TAP" : "HOLD 1.0 S TO RUN");
-    else if (t.risky) frame->print(now < hintUntil ? "HOLD TO LOOK FIRST" : "RISKY. HOLD TO LOOK");
+    else if (t.proto != P_NOD) frame->print("TAP OK  2 NO");
     else frame->print("TAP OK  2 NO  HOLD MORE");
   } else if (tileCount == 0 && connCount() > 0 && !pairing) {
     printCentered("ALL CLEAR", 150, 1, C_DIM);

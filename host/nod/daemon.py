@@ -108,6 +108,13 @@ class SimLink(Link):
     def __init__(self, broker, lane):
         self.broker, self.lane, self.connected = broker, lane, True
         self.tiles = []        # mirrors what the real firmware keeps
+        self.more = 0          # requests parked on the laptop behind this key
+
+    def state(self, msg=""):
+        """What this key's screen would show, for the practice key window in Nod Dot."""
+        return {"ev": "sim", "lane": self.lane, "more": self.more, "msg": msg,
+                "tiles": [{k: t.get(k) for k in ("id", "t", "src", "c", "l1", "l2", "l3", "risk", "code", "opened", "nolook")}
+                          for t in self.tiles]}
 
     async def send(self, obj):
         t = obj.get("t")
@@ -126,11 +133,19 @@ class SimLink(Link):
                 if x["id"] == obj["id"]:
                     x["nolook"] = True
             print(f"[sim lane {self.lane + 1}] no Nod Dot app is running: hold again to run")
+        elif t == "more":
+            self.more = int(obj.get("n", 0))
+        self.broker.emit_key(self.state())
 
     def press(self, kind):
+        res = self._press(kind)
+        self.broker.emit_key(self.state(res))
+        return res
+
+    def _press(self, kind):
         """Same rules as the firmware: tap approves, double-tap denies, hold opens the request on screen.
-        A risky request only takes a tap after it has been opened on screen. With no Nod Dot app
-        running, the key says so and a second hold runs it, as before."""
+        Risky requests take the same controls; they only look different (red). With no Nod Dot app
+        running, the key says so and a second hold runs it."""
         if not self.tiles:
             self.broker.on_key(self.lane, {"t": "btn"})
             return "nothing on this lane"
@@ -146,8 +161,6 @@ class SimLink(Link):
             return "look"
         elif kind == "double":
             d = "deny"
-        elif tile.get("risk") and not tile.get("opened"):
-            return "risky tap ignored: hold to look first"
         else:
             d = "allow"
         self.tiles.pop(0)
@@ -164,6 +177,7 @@ class Broker:
         self.all: dict[str, Request] = {}        # every request, so a late poll still gets its answer
         self.pair_order = None
         self.watchers: set = set()               # Nod Dot apps listening on /v1/events
+        self.key_watchers: set = set()           # practice key windows: they see simulated screens only
         self._locks: dict[int, asyncio.Lock] = {}
         if sim:
             for i in range(sim):
@@ -202,6 +216,13 @@ class Broker:
                 "color": "#" + colors.get(r.source, colors["*"]), "l1": r.l1, "l2": r.l2, "l3": r.l3,
                 "risky": r.risky, "code": r.code, "detail": r.detail, "why": r.why, "lane": r.lane,
                 "created": r.created, "opened": r.opened}
+
+    def emit_key(self, ev: dict):
+        for ws in list(self.key_watchers):
+            try:
+                asyncio.ensure_future(ws.send_json(ev))
+            except Exception:  # noqa: BLE001
+                self.key_watchers.discard(ws)
 
     def emit(self, ev: dict):
         dead = []
@@ -391,6 +412,20 @@ def make_app(broker: Broker, tok: str):
         """Nod Dot app: a snapshot, then live events. It may only open and close its panel."""
         ws = web.WebSocketResponse(heartbeat=20)
         await ws.prepare(request)
+        if request.query.get("role") == "key":
+            # A practice key window. It only watches simulated screens; it does not count as a
+            # Nod Dot app, and it cannot open, close or answer anything over this socket.
+            broker.key_watchers.add(ws)
+            try:
+                sims = [l for l in broker.links.values() if isinstance(l, SimLink)]
+                await ws.send_json({"ev": "keyhello", "sim": bool(sims)})
+                for l in sims:
+                    await ws.send_json(l.state())
+                async for _ in ws:
+                    pass
+            finally:
+                broker.key_watchers.discard(ws)
+            return ws
         broker.watchers.add(ws)
         await ws.send_json({"ev": "hello", "pending": [broker.public(r) for r in broker.requests.values()
                                                        if r.kind == "ask"]})

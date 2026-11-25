@@ -5,6 +5,7 @@
 // itself never approves anything: it only shows the request. Answers come from the key.
 const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeImage } = require('electron');
 const fs = require('fs');
+const http = require('http');
 const os = require('os');
 const path = require('path');
 
@@ -13,7 +14,8 @@ const MARGIN = 12;
 
 let win = null;
 let tray = null;
-let settings = { corner: 'top-right' };
+let keyWin = null;
+let settings = { corner: 'top-right', practiceKey: true };
 const settingsPath = () => path.join(app.getPath('userData'), 'settings.json');
 
 function loadSettings() {
@@ -82,6 +84,57 @@ function createWindow() {
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 }
 
+// ---- practice key: an on-screen Nod for when no real key is around.
+// It only works with a daemon started as `nod daemon --sim 1`, so it can never press a real key.
+function createKeyWindow() {
+  if (keyWin) { keyWin.show(); keyWin.focus(); return; }
+  const wa = screen.getPrimaryDisplay().workArea;
+  const w = 760, h = 560;
+  const saved = settings.keyBounds;
+  keyWin = new BrowserWindow({
+    width: w, height: h, minWidth: 620, minHeight: 500,
+    x: saved ? saved.x : Math.round(wa.x + (wa.width - w) / 2),
+    y: saved ? saved.y : Math.round(wa.y + (wa.height - h) / 2),
+    title: 'Practice key',
+    backgroundColor: '#0F100E',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    autoHideMenuBar: true,
+    fullscreenable: false,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload-key.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  keyWin.loadFile(path.join(__dirname, 'renderer', 'key.html'));
+  keyWin.once('ready-to-show', () => keyWin.show());
+  keyWin.webContents.on('will-navigate', (e) => e.preventDefault());
+  keyWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  keyWin.on('close', () => { const b = keyWin.getBounds(); settings.keyBounds = { x: b.x, y: b.y }; saveSettings(); });
+  keyWin.on('closed', () => { keyWin = null; });
+}
+
+function daemonCall(method, route, body, timeoutMs = 10000) {
+  const { port, token } = nodConfig();
+  return new Promise((resolve) => {
+    const data = body ? JSON.stringify(body) : null;
+    const req = http.request({
+      host: '127.0.0.1', port, path: route, method, timeout: timeoutMs,
+      headers: { 'Content-Type': 'application/json', 'X-Nod-Token': token, ...(data ? { 'Content-Length': Buffer.byteLength(data) } : {}) },
+    }, (res) => {
+      let out = '';
+      res.on('data', (c) => { out += c; });
+      res.on('end', () => { try { resolve({ status: res.statusCode, ...JSON.parse(out) }); } catch (e) { resolve({ status: res.statusCode, error: 'bad reply' }); } });
+    });
+    req.on('timeout', () => req.destroy(new Error('timeout')));
+    req.on('error', (e) => resolve({ status: 0, error: e.message }));
+    if (data) req.write(data);
+    req.end();
+  });
+}
+
 function trayIcon() {
   const file = process.platform === 'darwin' ? 'trayTemplate.png' : 'tray.png';
   const img = nativeImage.createFromPath(path.join(__dirname, 'assets', file));
@@ -98,6 +151,8 @@ function buildMenu() {
       label, type: 'radio', checked: settings.corner === id,
       click: () => { settings.corner = id; saveSettings(); win.setBounds(bounds()); win.webContents.send('corner', id); },
     })) },
+    { label: 'Practice key', type: 'checkbox', checked: !!keyWin,
+      click: (item) => { settings.practiceKey = item.checked; saveSettings(); if (item.checked) createKeyWindow(); else if (keyWin) keyWin.close(); } },
     { label: 'Open at login', type: 'checkbox', checked: login,
       click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }) },
     { type: 'separator' },
@@ -116,11 +171,12 @@ if (!app.requestSingleInstanceLock()) {
     tray.setToolTip('Nod Dot');
     tray.setContextMenu(buildMenu());
     tray.on('click', () => tray.popUpContextMenu(buildMenu()));
+    if (settings.practiceKey) createKeyWindow();
     screen.on('display-metrics-changed', () => win && win.setBounds(bounds()));
     screen.on('display-added', () => win && win.setBounds(bounds()));
     screen.on('display-removed', () => win && win.setBounds(bounds()));
   });
-  app.on('window-all-closed', () => app.quit());
+  app.on('window-all-closed', () => { /* the dot window stays; closing the practice key is fine */ });
 }
 
 ipcMain.handle('nod:config', () => ({ ...nodConfig(), corner: settings.corner, platform: process.platform }));
@@ -128,4 +184,17 @@ ipcMain.handle('nod:config', () => ({ ...nodConfig(), corner: settings.corner, p
 ipcMain.on('nod:expanded', (_e, open) => {
   if (!win) return;
   win.setIgnoreMouseEvents(!open, { forward: true });
+});
+
+// Practice key. Sending waits for the answer (like a real agent would) and reports it back.
+ipcMain.handle('key:config', () => { const c = nodConfig(); return { port: c.port, token: c.token }; });
+ipcMain.handle('key:press', (_e, kind) => daemonCall('POST', '/v1/sim/press', { lane: 0, kind: ['tap', 'double', 'hold'].includes(kind) ? kind : 'tap' }));
+ipcMain.on('key:send', async (e, req) => {
+  const body = {
+    source: String(req.source || '*').slice(0, 32), l1: String(req.l1 || '').slice(0, 200), l2: String(req.l2 || '').slice(0, 400),
+    l3: String(req.l3 || '').slice(0, 200), risky: !!req.risky, detail: String(req.detail || '').slice(0, 20000), why: String(req.why || '').slice(0, 600),
+    wait: 600,
+  };
+  const res = await daemonCall('POST', '/v1/ask', body, 620000);
+  if (!e.sender.isDestroyed()) e.sender.send('key:answer', { tag: req.tag, decision: res.decision || 'unavailable', error: res.error || '' });
 });

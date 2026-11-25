@@ -90,9 +90,6 @@ async def main():
                 await asyncio.sleep(0.4)
                 check("the panel app cannot approve anything itself", h.poll() is None)
 
-                r = await asyncio.to_thread(press, "tap")
-                check("a tap before looking does nothing on a risky request", "ignored" in r, r)
-
                 r = await asyncio.to_thread(press, "hold")
                 look = await next_event(ws, "look")
                 check("holding the key opens the request on screen", r == "look" and look and look["req"]["id"] == req["id"], str(look))

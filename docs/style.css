@@ -561,3 +561,8 @@
   /* the fine print sits under the two forms, not beside them */
   .cta-band{flex-direction:column;justify-content:center;align-items:stretch}
   .cta-band .formfine{width:100%}
+
+  /* the wheel only shows the word inside its window, so the next and last words never overlap the line above */
+  .wheel{perspective:none}
+  .wheel .win{position:absolute;inset:-.06em -.08em;overflow:hidden;perspective:7em;perspective-origin:50% 50%;border-radius:.08em}
+  .wheel .win .drum{inset:.06em .08em}

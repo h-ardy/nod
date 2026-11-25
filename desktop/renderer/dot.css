@@ -22,12 +22,13 @@ body.bottom-left  { --dot-x: 14px;              --dot-y: calc(100% - 14px); }
 /* ---------------------------------------------------------------- the dot */
 .dot { position: absolute; left: var(--dot-x); top: var(--dot-y); width: 0; height: 0; z-index: 3; pointer-events: none; }
 .dot .core, .dot .ring { position: absolute; left: 0; top: 0; border-radius: 50%; transform: translate(-50%, -50%); }
-.dot .core { width: 9px; height: 9px; background: #15140F; box-shadow: 0 0 0 1px rgba(237, 235, 228, .28);
+/* idle: a clear ring, see-through, so it sits on any wallpaper without a black spot */
+.dot .core { width: 9px; height: 9px; background: transparent; box-shadow: 0 0 0 1.5px rgba(237, 235, 228, .45), 0 0 0 3px rgba(15, 16, 14, .25);
   transition: width 500ms var(--ease), height 500ms var(--ease), background-color 300ms, box-shadow 300ms, opacity 300ms; }
 .dot .ring { width: 9px; height: 9px; opacity: 0; border: 2px solid var(--amber); }
 
-/* daemon not running: a faint hollow ring, so you can tell Nod isn't listening */
-body.offline .dot .core { background: transparent; box-shadow: 0 0 0 1.5px rgba(237, 235, 228, .35); opacity: .7; }
+/* daemon not running: the same ring, fainter, so you can tell Nod isn't listening */
+body.offline .dot .core { opacity: .35; }
 
 /* something is waiting: amber, breathing slowly */
 body.waiting .dot .core { width: 12px; height: 12px; background: var(--amber); box-shadow: 0 0 0 2px rgba(15, 16, 14, .9); animation: breathe 2.2s var(--ease) infinite; }

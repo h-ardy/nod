@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src ws://127.0.0.1:*; style-src 'self'; font-src 'self'; img-src 'self' data:; script-src 'self'">
+<title>Practice key</title>
+<link rel="stylesheet" href="key.css">
+</head>
+<body class="offline">
+  <header class="bar">
+    <span class="title">PRACTICE KEY</span>
+    <span class="state" id="state">Looking for Nod</span>
+  </header>
+
+  <div class="banner" id="banner" hidden>
+    <p id="bannerText">Nod isn't running. Start it in practice mode:</p>
+    <div class="cmdline"><code id="cmd">bash ~/Documents/GitHub/nod/host/demo.sh key</code><button type="button" id="copy">Copy</button></div>
+  </div>
+
+  <main class="bench">
+    <section class="agents" aria-label="Send a made-up request">
+      <h2>AGENTS ASKING</h2>
+      <div id="sendList"></div>
+      <p class="fine">Made up. Nothing runs, whatever you press.</p>
+    </section>
+
+    <section class="desk">
+      <div class="nodkey" id="nodkey">
+        <div class="glass">
+          <div class="scr" id="scr">
+            <div class="more" id="more"></div>
+            <div class="stack" id="stack"></div>
+            <div class="line"></div>
+            <div class="hint" id="hint">NOTHING WAITING</div>
+            <div class="flash" id="flash" hidden><b id="flashText"></b></div>
+          </div>
+        </div>
+        <div class="well"></div>
+        <button class="cap" id="cap" type="button" aria-label="The key. Tap to approve, double tap to deny, hold one second to open it on the Nod Dot panel."><span class="ring"></span></button>
+      </div>
+      <small><b>Tap</b> approve &nbsp; <b>Double</b> deny &nbsp; <b>Hold</b> look<br>Click the key, or use <kbd>Space</kbd></small>
+    </section>
+
+    <section class="heard" aria-label="What the agent hears">
+      <h2>WHAT THE AGENT HEARS</h2>
+      <p class="empty" id="empty">Nothing yet. Send a request, then answer it on the key.</p>
+      <ol class="log" id="log" aria-live="polite"></ol>
+    </section>
+  </main>
+
+  <script src="key.js"></script>
+</body>
+</html>

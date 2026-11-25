@@ -73,8 +73,11 @@ check("double-tap denies with a message", out["hookSpecificOutput"]["decision"][
 h = nod("hook", "claude", bg=True); h.stdin.write(perm("rm -rf build/")); h.stdin.close()
 wait_pending()
 r1 = press(0, "tap")
-time.sleep(0.3)
-check("risky tile ignores a tap", "ignored" in r1 and h.poll() is None, r1)
+out = json.loads(h.communicate(timeout=10)[0])
+check("risky tile takes a plain tap like any other", r1 == "allow" and out["hookSpecificOutput"]["decision"]["behavior"] == "allow", r1)
+
+h = nod("hook", "claude", bg=True); h.stdin.write(perm("rm -rf build/")); h.stdin.close()
+wait_pending()
 r2 = press(0, "hold")
 time.sleep(0.3)
 check("hold asks to show it on screen; with no Nod Dot app open nothing runs yet", r2 == "look" and h.poll() is None, r2)
@@ -121,10 +124,9 @@ g("reset", "-q", "--hard", "HEAD~2"); open(os.path.join(repo, "z.txt"), "w").wri
 push = subprocess.Popen(["git", "push", "-q", "-f", "origin", "main"], cwd=repo, env=ENV,
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 wait_pending()
+check("force push is flagged risky", any(p["risky"] for p in status()["pending"]), str(status()["pending"]))
 r = press(2, "tap")
-check("force push is flagged risky (tap ignored)", "ignored" in r, r)
-press(2, "hold"); time.sleep(0.3); press(2, "hold")
-check("hold, then hold again (no Nod Dot app), allows the force push", push.wait(15) == 0)
+check("a tap allows the force push", r == "allow" and push.wait(15) == 0, r)
 
 # ---------------------------------------------------------------- chat bridge (MCP)
 async def mcp_test():
@@ -148,8 +150,6 @@ async def mcp_test():
             await asyncio.sleep(0.6)
             pend = await asyncio.to_thread(status)
             check("chat delete is flagged risky by the action text", bool(pend["pending"]) and pend["pending"][0]["risky"], str(pend["pending"]))
-            r = await asyncio.to_thread(press, 0, "tap")
-            check("tap does not approve a risky chat action", "ignored" in r, r)
             await asyncio.to_thread(press, 0, "double")
             txt = (await task).content[0].text
             check("double-tap returns DENIED to the chat", txt.startswith("DENIED"), txt)

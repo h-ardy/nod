@@ -3,7 +3,7 @@
 Starts the daemon with one simulated key, sends a few made-up requests one at a time,
 and turns your keyboard into the key:
 
-  space or t   tap         approve (a risky request needs a hold first)
+  space or t   tap         approve
   h            hold        open the request on the Nod Dot panel
   d            double-tap  deny
   q            quit
@@ -63,7 +63,7 @@ def _feeder(stop):
     for i, req in enumerate(SCRIPT, 1):
         if stop.is_set():
             return
-        tag = "  (risky: hold first)" if req.get("risky") else ""
+        tag = "  (risky)" if req.get("risky") else ""
         _say(f"request {i}/{len(SCRIPT)}: {req['l1']}  {req['l2']}{tag}")
         res = client.ask(**req, wait=300)
         _say(f"  -> {res.get('decision')}")

@@ -18,7 +18,7 @@ Each key holds two Bluetooth connections at once: the nod daemon and the Claude 
 People have built approval buttons before, so here is where Nod sits:
 - Anthropic's own [claude-desktop-buddy](https://github.com/anthropics/claude-desktop-buddy) publishes the Bluetooth protocol the Claude desktop app uses for maker hardware (developer mode only, not an officially supported feature). Nod's firmware speaks it, so a key works with the desktop app with no daemon at all.
 - [Claude Board](https://pypi.org/project/claude-board/) approves from a phone with hardware planned; [Gavel](https://github.com/etalli/Gavel) uses three buttons that type the answer as a USB keyboard; several M5Stack consoles exist on Hackster; OpenAI's Codex Micro macro pad was reported in July 2026.
-- What Nod adds: a 1 x 1 x 3 in key with its own screen, magnetic stacking where each key is a lane, a queue that falls like piano tiles, per-source colors, git push approvals, hold-to-look for risky commands (the request opens in full in the Nod Dot app on your screen), and one key serving the desktop app and the CLI at the same time.
+- What Nod adds: a 1 x 1 x 3 in key with its own screen, magnetic stacking where each key is a lane, a queue that falls like piano tiles, per-source colors, git push approvals, hold-to-look (the request opens in full in the Nod Dot app on your screen), red tiles for risky commands, and one key serving the desktop app and the CLI at the same time.
 
 ## 1. Parts (one module)
 
@@ -92,7 +92,7 @@ Key behaviour:
 - A tile counts only once it has landed on the dashed line, so a stray press never answers something you haven't read.
 - Tap approves. Double-tap denies.
 - Hold about 1 s to look: the Nod Dot app on your computer opens the whole request (section 6). The key and the panel show the same 3-letter code, so you know it's the same request. With the panel open, a tap approves and a double-tap denies.
-- Risky tiles (red outline) ignore taps until you've held to look. If the Nod Dot app isn't running, the key says NO SCREEN and a second hold runs it, so the key still works on its own.
+- Risky tiles get a red outline and take the same controls as everything else: tap, double-tap, or hold to look. If the Nod Dot app isn't running when you hold, the key says NO SCREEN and a second hold runs it, so the key still works on its own.
 - Info notes ("Done", "Waiting for you"): tap to clear.
 - The screen fits 3 tiles. Extra requests wait on your computer, not the key, and the key shows "+N MORE" at the top. Each time you answer one, the next slides in. Nothing is dropped, however many sessions are asking.
 - The screen goes dark after 30 s with nothing pending. Bluetooth stays connected.
@@ -178,7 +178,7 @@ What these tests can't cover: the radio itself, pairing on a real OS, the screen
 
 ## 8. Safety rules built in
 - Tile text is built from the real command, path or URL, never from the model's description of it.
-- Risky patterns (rm -rf, sudo, force push, curl piped to a shell, chmod 777, dd, publish, DROP TABLE, terraform destroy, and in chats delete, buy, pay, transfer) can't be tapped through. You hold to open them in full first, or with no screen nearby, hold twice.
+- Risky patterns (rm -rf, sudo, force push, curl piped to a shell, chmod 777, dd, publish, DROP TABLE, terraform destroy, and in chats delete, buy, pay, transfer) are marked red on the key and the dot. They take the same tap, double-tap and hold as everything else, so the red is your cue to hold and read it first.
 - The Nod Dot panel only shows requests. It has no way to approve one: answers come from the key. The key and the panel show the same code so a swapped request is easy to spot.
 - A timeout or a dead link never approves.
 - The daemon listens only on 127.0.0.1 and wants a random token from `~/.nod/token`, so a web page can't send approvals to it.
