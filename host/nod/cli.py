@@ -7,6 +7,7 @@
   nod install-git [REPO]        install the pre-push hook into a repo
   nod claude-settings           print the hooks block for ~/.claude/settings.json
   nod mcp                       chat bridge (MCP server over stdio) for Claude Desktop and other MCP chat apps
+  nod demo                      try Nod Dot with no key: fake requests, your keyboard is the key
   nod ask / notify / status / press   manual and test helpers
 """
 import argparse
@@ -190,6 +191,7 @@ def main(argv=None):
     a.add_argument("--detail", default="", help="full text for the Nod Dot panel"); a.add_argument("--why", default="")
     n = sub.add_parser("notify"); n.add_argument("--source", default="*"); n.add_argument("--l1", required=True); n.add_argument("--l2", default="")
     sub.add_parser("status")
+    sub.add_parser("demo")
     pr = sub.add_parser("press"); pr.add_argument("lane", type=int); pr.add_argument("kind", nargs="?", default="tap")
     args = p.parse_args(argv)
 
@@ -216,6 +218,9 @@ def main(argv=None):
         return {"allow": 0, "deny": 1}.get(res.get("decision"), 2)
     elif args.cmd == "notify":
         print(client.notify(args.source, args.l1, args.l2))
+    elif args.cmd == "demo":
+        from . import demo
+        return demo.main()
     elif args.cmd == "status":
         print(json.dumps(client.status(), indent=2))
     elif args.cmd == "press":
