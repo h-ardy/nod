@@ -128,7 +128,7 @@ window.showPriceRow = (i) => {
       } finally { btn.disabled = false; }
     });
   };
-  hook('signup', 'email', 'note', 'You’re on the list. You’ll get an email when pre-orders open.');
+  hook('signup', 'email', 'note', 'You’re on the waitlist. You’ll hear first when pre-orders open.');
   // Postel: team size can be "12", "about 20" or "10-15". Keep what they typed, it all goes through
   hook('pilot', 'pemail', 'pnote', 'Got it. I’ll email you about the pilot.', (form) => {
     const sz = form.querySelector('#psize'); sz.value = sz.value.trim();
@@ -155,8 +155,8 @@ if (document.getElementById('lanesArt')) {
 window.makeNod = function (canvas, hooks = {}) {
   const W = 172, H = 320, S = canvas.width / W, c = canvas.getContext('2d');
   const HIT = 288, TH = 64, THR = 96, GAP = 6, TX = 6, TW = W - 12;
-  const HOLD = 1000, DBL = 320, PRESS = 90, APPR = 780, DENY = 450, MAX_SHOWN = 3, FALL = 210;   // FALL in px per second
-  const RED = '#F04438';
+  const HOLD = 500, DBL = 320, PRESS = 90, APPR = 780, DENY = 450, MAX_SHOWN = 3, FALL = 210;   // FALL in px per second
+  const RED = '#F04438', CODES = 'ACDEFHJKMNPRTVWXY347';
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const k = { tiles: [], parked: [], down: false, downAt: 0, holdUsed: false, lastTapAt: 0, pendingTapAt: 0, hold: 0, hintUntil: 0, earlyUntil: 0, last: 0 };
   let nextId = 1;
@@ -197,16 +197,19 @@ window.makeNod = function (canvas, hooks = {}) {
   }
   function tick(now) {
     const t = lowest();
-    if (k.down && !k.holdUsed && t && t.risky && ready()) {
+    if (k.down && !k.holdUsed && t && ready()) {                                     // hold half a second: open the full request on the computer
       k.hold = Math.min(1, (now - k.downAt) / HOLD);
-      if (k.hold >= 1) { k.holdUsed = true; k.hold = 0; k.pendingTapAt = 0; emit('gesture', 'hold'); finish(t, 'appr'); }
+      if (k.hold >= 1) {
+        k.holdUsed = true; k.hold = 0; k.pendingTapAt = 0;
+        if (!t.code) t.code = Array.from({ length: 3 }, () => CODES[Math.floor(Math.random() * CODES.length)]).join('');
+        t.opened = true; emit('gesture', 'hold'); emit('open', t);
+      }
     }
     if (k.pendingTapAt && now >= k.pendingTapAt) {
       k.pendingTapAt = 0;
       const l = lowest();
       if (!l) return;
-      if (l.risky) { k.hintUntil = now + 1100; emit('gesture', 'needhold'); }
-      else { emit('gesture', 'tap'); finish(l, 'appr'); }
+      emit('gesture', 'tap'); finish(l, 'appr');                                     // risky ones take a tap too; they just show red
     }
   }
   function settle(dt) {
@@ -262,9 +265,8 @@ window.makeNod = function (canvas, hooks = {}) {
     text(t.l2, x + 8, yy + 40, F1, kk, TW - 16);
     if (isReady) {
       text(t.l3, x + 8, yy + 54, F1, kk, TW - 16);
-      if (t.risky) {
-        c.fillStyle = '#C6C6C6'; c.fillRect((x + 8) * S, (yy + h - 12) * S, (TW - 16) * S, 5 * S);
-        c.fillStyle = RED; c.fillRect((x + 8) * S, (yy + h - 12) * S, (TW - 16) * k.hold * S, 5 * S);
+      if (k.hold > 0.2) {
+        c.fillStyle = t.risky ? RED : '#FFFFFF'; c.fillRect((x + 8) * S, (yy + h - 12) * S, (TW - 16) * k.hold * S, 5 * S);
       }
     }
   }
@@ -324,7 +326,7 @@ window.makeNod = function (canvas, hooks = {}) {
     c.fillStyle = '#4A4C52';
     for (let x = 6; x < W - 6; x += 6) c.fillRect(x * S, HIT * S, 3 * S, S);
     if (low && isReady) {
-      const msg = low.risky ? (now < k.hintUntil ? "HOLD, DON'T TAP" : 'HOLD 1.0 S TO RUN') : 'TAP OK  2 TAPS NO';
+      const msg = low.opened ? `CODE ${low.code}  TAP OK  2 NO` : 'TAP OK  2 NO  HOLD MORE';
       text(msg, 8, HIT + 10, F1, low.risky ? RED : low.color);
     } else if (low && now < k.earlyUntil) text('LET IT LAND', 8, HIT + 10, F1, '#9A9DA3');
     else if (!k.tiles.length) centered('ALL CLEAR', 150, F1, '#8A8D93');
@@ -359,11 +361,12 @@ if (document.getElementById('demo')) (() => {
   const nod = window.makeNod(canvas, {
     change: updateButtons,
     gesture: (g) => {
-      if (g === 'tap') lit('g-tap'); if (g === 'double') lit('g-double'); if (g === 'hold' || g === 'needhold') lit('g-hold');
+      if (g === 'tap') lit('g-tap'); if (g === 'double') lit('g-double'); if (g === 'hold') lit('g-hold');
       if (g === 'double') again(body, 'shake');
-      if (g === 'early' || g === 'needhold') again(body, 'nudge');
+      if (g === 'early') again(body, 'nudge');
     },
     land: () => { bench.classList.add('focus'); },
+    open: (t) => { if (said) said.textContent = `${t.label}: full request opened on your computer, code ${t.code}. Tap to approve.`; },
     finish: (t, ok) => {
       t.done = ok ? 'YES' : 'NO';
       if (said) said.textContent = `${t.label}: ${ok ? 'allowed' : 'denied'}`;
@@ -403,7 +406,7 @@ if (document.getElementById('demo')) (() => {
     ask(b.dataset.src, { risky: !!b.dataset.risky, first: !sent[key], btn: b }); sent[key] = true;
   });
 
-  // ---- add your own: a name, what it asks, a color, and whether it needs a hold
+  // ---- add your own: a name, what it asks, a color, and whether it's risky (shows red)
   const maker = document.getElementById('maker'), cmd = document.getElementById('makerCmd');
   const slug = (v) => (v || 'my-tool').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) || 'my-tool';
   const q = (v) => '"' + String(v).replace(/(["\\$`])/g, '\\$1') + '"';
@@ -413,7 +416,7 @@ if (document.getElementById('demo')) (() => {
     SRC[key] = { name: c.name.toUpperCase().slice(0, 16), label: c.name, color: c.color, where: 'your script', pool: [[c.l1, c.l2]], risky: c.risky ? [[c.l1, c.l2]] : [], always: c.risky };
     const b = document.createElement('button'); b.type = 'button'; b.className = 'send custom'; b.dataset.src = key;
     b.innerHTML = `<i style="background:${c.risky ? '#F04438' : c.color}"></i><span><span class="who"></span><span class="cmd"></span></span><span class="go">SEND</span>`;
-    b.querySelector('.who').textContent = c.name; b.querySelector('.cmd').textContent = c.l1 + (c.l2 ? ' ' + c.l2 : '') + (c.risky ? '  (hold)' : '');
+    b.querySelector('.who').textContent = c.name; b.querySelector('.cmd').textContent = c.l1 + (c.l2 ? ' ' + c.l2 : '') + (c.risky ? '  (risky)' : '');
     const burst = list.querySelector('[data-burst]'); list.insertBefore(b, burst);
     if (send) { b.classList.add('fired'); ask(key, { btn: b }); }
   }

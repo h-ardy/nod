@@ -123,7 +123,7 @@ h2 { font-family: var(--display); font-weight: 600; font-size: 19px; letter-spac
       <dl class="how">
         <dt>Tap</dt><dd>approve</dd>
         <dt>Double-tap</dt><dd>deny</dd>
-        <dt>Hold 1.0 s</dt><dd>approve a risky one (red outline); a tap does nothing</dd>
+        <dt>Hold 0.5 s</dt><dd>open the full request on your computer, then tap. Risky ones (red outline) use the same controls</dd>
         <dt>Keys 1 2 3</dt><dd>press the keys from your keyboard</dd>
       </dl>
     </div>
@@ -147,7 +147,7 @@ h2 { font-family: var(--display); font-weight: 600; font-size: 19px; letter-spac
   // ------------------------------------------------------------ constants: the same numbers as the firmware
   const W = 172, H = 320, S = 2;
   const HIT = 288, TH = 64, THR = 96, GAP = 6, TX = 6, TW = W - 12;
-  const HOLD = 1000, DBL = 320, PRESS = 90, APPR = 780, DENY = 450, MAX_SHOWN = 3, FALL = 210; // px per second
+  const HOLD = 500, DBL = 320, PRESS = 90, APPR = 780, DENY = 450, MAX_SHOWN = 3, FALL = 210; // px per second
   const RED = "#F04438";
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -175,7 +175,7 @@ h2 { font-family: var(--display); font-weight: 600; font-size: 19px; letter-spac
     key.innerHTML = `
       ${i > 0 ? '<span class="magnet l"></span>' : ""}${i < 2 ? '<span class="magnet r"></span>' : ""}
       <div class="glass"><canvas width="${W * S}" height="${H * S}" role="img" aria-label="Key ${i + 1} screen"></canvas></div>
-      <button class="cap" type="button" aria-label="Key ${i + 1}, ${KEYNAMES[i]}: tap to approve, double-tap to deny, hold for risky"><span></span><kbd>${i + 1}</kbd></button>
+      <button class="cap" type="button" aria-label="Key ${i + 1}, ${KEYNAMES[i]}: tap to approve, double-tap to deny, hold to open the full request"><span></span><kbd>${i + 1}</kbd></button>
       <div class="tag">Key ${i + 1} <b>${KEYNAMES[i]}</b></div>`;
     stack.appendChild(key);
     const canvas = key.querySelector("canvas");
@@ -277,7 +277,7 @@ h2 { font-family: var(--display); font-weight: 600; font-size: 19px; letter-spac
   function updateRows() {
     let waiting = 0;
     lanes.forEach((lane) => {
-      lane.tiles.forEach((t) => { if (t.state === "live") { waiting++; setRow(t, "ON KEY " + (lane.i + 1), "wait", t.note ? "tap to clear" : t.risky ? "needs a 1.0 s hold" : "waiting for your press"); } });
+      lane.tiles.forEach((t) => { if (t.state === "live") { waiting++; setRow(t, "ON KEY " + (lane.i + 1), "wait", t.note ? "tap to clear" : t.risky ? "risky, waiting for your press" : "waiting for your press"); } });
       lane.parked.forEach((t, k) => { waiting++; setRow(t, "QUEUED", "wait", `waiting on the computer, ${k + 1} in line for key ${lane.i + 1}`); });
     });
     document.getElementById("pending").textContent = `${waiting} waiting`;
@@ -313,17 +313,19 @@ h2 { font-family: var(--display); font-weight: 600; font-size: 19px; letter-spac
   }
   function tick(lane, now) {
     const t = lowest(lane);
-    if (lane.down && !lane.holdUsed && t && t.risky && ready(lane)) {
+    if (lane.down && !lane.holdUsed && t && !t.note && ready(lane)) {        // hold half a second: open the full request on the computer
       lane.hold = Math.min(1, (now - lane.downAt) / HOLD);
-      if (lane.hold >= 1) { lane.holdUsed = true; lane.hold = 0; lane.pendingTapAt = 0; finish(lane, t, "appr"); }
+      if (lane.hold >= 1) {
+        lane.holdUsed = true; lane.hold = 0; lane.pendingTapAt = 0;
+        if (!t.code) t.code = Array.from({ length: 3 }, () => "ACDEFHJKMNPRTVWXY347"[Math.floor(Math.random() * 20)]).join("");
+        t.opened = true;
+      }
     }
     if (lane.pendingTapAt && now >= lane.pendingTapAt) {
       lane.pendingTapAt = 0;
       const l = lowest(lane);
       if (!l) return;
-      if (l.note) finish(lane, l, "appr");
-      else if (l.risky) lane.hintUntil = now + 900;
-      else finish(lane, l, "appr");
+      finish(lane, l, "appr");                                       // risky ones take a tap too
     }
   }
 
@@ -375,9 +377,8 @@ h2 { font-family: var(--display); font-weight: 600; font-size: 19px; letter-spac
     text(c, t.l2, x + 8, yy + 40, F1, k, TW - 16);
     if (isReady && hh > 70) {
       text(c, t.l3, x + 8, yy + 54, F1, k, TW - 16);
-      if (t.risky) {
-        c.fillStyle = "#C6C6C6"; c.fillRect((x + 8) * S, (yy + hh - 12) * S, (TW - 16) * S, 5 * S);
-        c.fillStyle = RED; c.fillRect((x + 8) * S, (yy + hh - 12) * S, (TW - 16) * lane.hold * S, 5 * S);
+      if (lane.hold > 0.2) {
+        c.fillStyle = t.risky ? RED : "#FFFFFF"; c.fillRect((x + 8) * S, (yy + hh - 12) * S, (TW - 16) * lane.hold * S, 5 * S);
       }
     }
   }
@@ -463,7 +464,7 @@ h2 { font-family: var(--display); font-weight: 600; font-size: 19px; letter-spac
     c.fillStyle = "#4A4C52";
     for (let x = 6; x < W - 6; x += 6) c.fillRect(x * S, HIT * S, 3 * S, S);
     if (low && isReady) {
-      const msg = low.note ? "TAP TO CLEAR" : low.risky ? (now < lane.hintUntil ? "HOLD, DON'T TAP" : "HOLD 1.0 S TO RUN") : "TAP OK  2 TAPS NO";
+      const msg = low.note ? "TAP TO CLEAR" : low.opened ? `CODE ${low.code}  TAP OK  2 NO` : "TAP OK  2 NO  HOLD MORE";
       text(c, msg, 8, HIT + 10, F1, low.risky ? RED : low.color);
     } else if (low && now < lane.earlyUntil) {
       text(c, "LET IT LAND", 8, HIT + 10, F1, "#9A9DA3");
@@ -483,7 +484,7 @@ h2 { font-family: var(--display); font-weight: 600; font-size: 19px; letter-spac
     if (ring !== lane.ring) {
       lane.ring = ring;
       lane.cap.style.boxShadow = ring ? `inset 0 0 0 1px #46484E, 0 0 0 3px ${ring}, 0 0 28px ${ring}88` : "inset 0 0 0 1px #46484E";
-      lane.capLabel.textContent = ring ? (low.note ? "CLEAR" : low.risky ? "HOLD" : "TAP") : "";
+      lane.capLabel.textContent = ring ? (low.note ? "CLEAR" : "TAP") : "";
     }
   }
 

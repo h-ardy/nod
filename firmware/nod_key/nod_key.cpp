@@ -1,5 +1,7 @@
 // Nod key firmware v0.2.1 (all code lives here; nod_key.ino is the Arduino entry file)
 // 0.2.1: screen mirror over USB serial (docs/mirror.html), so the key can be tested before the screen is wired
+// 0.3.2: presses are caught by an interrupt, so a quick tap during a screen redraw is not lost;
+//        tiles drop twice as fast; a press while a tile is still dropping shows WAIT instead of nothing.
 // 0.3.1: hold is half a second (was one). Risky requests take the same controls as the rest: tap approves, double tap denies, hold looks.
 //        They still show red, so you can tell them apart.
 // 0.3.0: hold to look. Holding a request opens it in full in the Nod Dot app on the computer; a tap then approves.
@@ -57,7 +59,7 @@
 #include <Adafruit_NeoPixel.h>
 #endif
 
-#define FW_VERSION "0.3.1"
+#define FW_VERSION "0.3.2"
 
 // ---------------------------------------------------------------- pins
 const uint8_t PIN_KEY = 0, TFT_CS = 1, TFT_DC = 2, TFT_RST = 3, TFT_BL = 6, PIN_KEYLED = 7;
@@ -489,33 +491,54 @@ void sendBtn() {
   }
 }
 
+// A whole press can start and end while the screen is being drawn (and copied to the mirror),
+// so the falling edge is also latched by an interrupt and replayed if polling missed it.
+volatile bool keyFell = false;
+volatile uint32_t keyFellAt = 0;
+void keyIsr() {
+  if (!keyFell) { keyFell = true; keyFellAt = millis(); }
+}
+
+void keyEdge(bool down, uint32_t now) {
+  keyDown = down;
+  wake();
+  if (down) {
+    keyDownAt = now;
+    holdUsed = false;
+  } else if (!holdUsed) {
+    if (pairing || lowestLive() < 0) {
+      sendBtn();
+      pairing = false;
+    } else if (!lowestReady()) {
+      // still dropping: a stray press never answers something you have not read. Say so.
+      hintUntil = now + 800;
+    } else if (pendingTapAt && now - lastTapAt < DOUBLE_MS) {
+      pendingTapAt = 0;
+      int i = lowestLive();
+      if (i >= 0 && !tiles[i].note) finish(i, DENIED);
+    } else {
+      lastTapAt = now;
+      pendingTapAt = now + DOUBLE_MS;
+    }
+  }
+  holdProgress = 0;
+}
+
 void pollKey() {
   bool down = digitalRead(PIN_KEY) == LOW;
   uint32_t now = millis();
   static uint32_t lastEdge = 0;
   if (down != keyDown && now - lastEdge > 12) {        // 12 ms debounce
     lastEdge = now;
-    keyDown = down;
-    wake();
-    if (down) {
-      keyDownAt = now;
-      holdUsed = false;
-    } else if (!holdUsed) {
-      if (pairing || lowestLive() < 0) {
-        sendBtn();
-        pairing = false;
-      } else if (!lowestReady()) {
-        // still falling: ignore, so a stray press never answers something you have not read
-      } else if (pendingTapAt && now - lastTapAt < DOUBLE_MS) {
-        pendingTapAt = 0;
-        int i = lowestLive();
-        if (i >= 0 && !tiles[i].note) finish(i, DENIED);
-      } else {
-        lastTapAt = now;
-        pendingTapAt = now + DOUBLE_MS;
-      }
+    if (down) { noInterrupts(); keyFell = false; interrupts(); }
+    keyEdge(down, now);
+  } else if (!down && !keyDown && keyFell) {
+    noInterrupts(); uint32_t at = keyFellAt; keyFell = false; interrupts();
+    if (now - at >= 15 && (int32_t)(at - lastEdge) > 12) {   // signed: bounces from a release polling already saw are older than lastEdge         // a real press that came and went between polls
+      keyEdge(true, at);
+      keyEdge(false, now);
+      lastEdge = now;
     }
-    holdProgress = 0;
   }
   int i = lowestLive();
   // Holding a request: Nod requests open on screen (or run, on the second hold with no screen);
@@ -791,6 +814,10 @@ void render() {
     else if (t.nolook) frame->print("NO SCREEN. HOLD TO RUN");
     else if (t.proto != P_NOD) frame->print("TAP OK  2 NO");
     else frame->print("TAP OK  2 NO  HOLD MORE");
+  } else if (low >= 0 && now < hintUntil) {
+    frame->setTextColor(C_DIM);
+    frame->setCursor(8, HIT_Y + 10);
+    frame->print("WAIT, STILL LANDING");
   } else if (tileCount == 0 && connCount() > 0 && !pairing) {
     printCentered("ALL CLEAR", 150, 1, C_DIM);
   }
@@ -811,7 +838,7 @@ void animate() {
     int16_t h = (k == 0) ? TILE_H_READY : TILE_H;
     float target = slotBottom - h;
     Tile &t = tiles[i];
-    if (t.y < target) t.y = min(target, t.y + 7.0f);
+    if (t.y < target) t.y = min(target, t.y + 14.0f);
     if (t.y > target) t.y = target;
     slotBottom = (int16_t)target - TILE_GAP;
   }
@@ -887,6 +914,7 @@ void bootNameMode() {
 
 void setup() {
   pinMode(PIN_KEY, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(PIN_KEY), keyIsr, FALLING);
   pinMode(TFT_BL, OUTPUT);
 #if defined(VBAT_ENABLE)
   pinMode(VBAT_ENABLE, OUTPUT);
@@ -963,6 +991,7 @@ void setup() {
   readBattery();
   wake();
   render();
+  keyFell = false;                                     // a hold at power-up picks the mode, it is not a tap
 }
 
 void loop() {
