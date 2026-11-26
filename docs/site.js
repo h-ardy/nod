@@ -650,12 +650,12 @@ if (document.getElementById('intro')) {
 })();
 
 // ---------- "Nod for" strip: drifts left on its own, drag it with the mouse or a finger, and it carries on with a little momentum
-(() => {
-  const strip = document.querySelector('.forstrip'), track = strip && strip.querySelector('.track');
+document.querySelectorAll('.forstrip').forEach((strip) => {
+  const track = strip.querySelector('.track');
   if (!track) return;
   track.style.animation = 'none';
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const BASE = calm ? 0 : -60;                 // px per second
+  const BASE = calm ? 0 : -60 * (strip.dataset.dir === '1' ? -1 : 1);   // px per second; data-dir="1" drifts right
   let half = track.scrollWidth / 2, x = 0, vel = BASE, target = BASE, drag = null, moved = 0, last = performance.now();
   addEventListener('resize', () => { half = track.scrollWidth / 2; });
   const wrap = () => { if (half > 0) { x = x % half; if (x > 0) x -= half; } };
@@ -694,4 +694,4 @@ if (document.getElementById('intro')) {
   strip.addEventListener('pointercancel', end);
   // a drag isn't a click: don't follow the link you happened to grab
   strip.addEventListener('click', (e) => { if (moved > 6) { e.preventDefault(); e.stopPropagation(); } }, true);
-})();
+});
